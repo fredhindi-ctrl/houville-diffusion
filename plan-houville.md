@@ -93,6 +93,34 @@ auto-déploiement sur futur push) :
   fonctionnelle, cron protégé. Un 3ᵉ projet parasite (`houville-diffusion`, créé automatiquement
   à la première connexion GitHub, `rootDirectory` également `null`) a été supprimé sur demande.
 
+**Retouches webapp Œdicnème post-déploiement (28/08/2026)** :
+- Badge «Prototype» et «— Prototype interactif» dans le `<title>` retirés (plus un prototype,
+  c'est en prod) — badge «Recherche documentaire — sans IA générative» conservé.
+- Titre des cartes résultat (`.result h3`) utilisait Georgia (serif) alors que la ligne
+  méta au-dessus est en Inter (sans-serif) — incohérent visuellement, signalé par
+  l'utilisateur. Retiré l'override, hérite maintenant de la même police.
+- Résultats de recherche triés par pertinence (`rang` de `recherche_fts`) — pas intuitif pour
+  des archives municipales. Changé en tri par date décroissante côté `api/search.ts` (les
+  candidats restent choisis par pertinence, seul l'ordre d'affichage change).
+- **Bug réel trouvé par l'utilisateur (login Vercel imposé sur mobile)** : `ssoProtection`
+  était activée sur le projet `webapp-oedicneme` (`deploymentType: all_except_custom_domains`)
+  — mettait un site censé être public derrière un mur de connexion Vercel, puisqu'aucun
+  domaine personnalisé n'est configuré. Désactivée via l'API (`ssoProtection: null`), reconfirmé 200
+  sans redirection depuis un client anonyme.
+- **Débordement horizontal sur mobile (confirmé par l'utilisateur, scroll horizontal réel,
+  bouton d'envoi coupé au bord de l'écran)** : cause exacte non identifiée malgré inspection
+  approfondie du CSS (chaîne flex/grid `.form`/`.composer`/`.send` semblait correcte sur le
+  papier). Filet de sécurité appliqué (`overflow-x:hidden` sur `html,body` et `.app`,
+  `min-width:0` sur `.form`) — **pas reconfirmé par l'utilisateur après coup**.
+- **Composer nécessitant un scroll de page pour être visible sur mobile** : le composer est
+  imbriqué deux niveaux de grille sous `.app` (`main > .chatPane > .composer`). Ajouté
+  `height:100%` à chaque niveau imbriqué (`main`, `.chatPane`), en plus du `min-height:0` déjà
+  présent — hypothèse : Safari iOS a besoin des deux, pas seulement `min-height:0`, dans une
+  grille imbriquée sur plusieurs niveaux. **Retesté par l'utilisateur : «pas terrible», pas
+  concluant.** Chantier arrêté là à sa demande, pas relancé. À reprendre avec, idéalement, un
+  vrai outil d'inspection mobile (DevTools distant ou navigateur pilotable) plutôt que du
+  CSS à l'aveugle — c'est la limite atteinte cette session (aucun outil navigateur disponible).
+
 **Pour reprendre la prochaine fois :**
 1. ✅ SQL de `recherche_fts` (section G) rejoué sur Supabase et revérifié en direct (28/08/2026).
 2. ✅ `webapp-oedicneme/index.html` = prototype utilisateur, branché sur `/api/search` réel
@@ -386,34 +414,45 @@ alter table baileys_auth_state enable row level security;
 -- (qui contourne RLS). C'est le comportement voulu ici.
 ```
 
-## H. Hébergement Baileys : AlwaysData (abandon de Render, puis de Koyeb, puis de Northflank)
+## H. Hébergement whatsapp-worker : AlwaysData + whatsmeow (Go)
 
-**Changement (28/08/2026)** : Koyeb nécessitait un compte/token que l'utilisateur n'avait pas
-sous la main ; Northflank a été essayé ensuite mais bloque la création du moindre service
-(même gratuit) tant qu'aucune carte bancaire n'est enregistrée sur le compte — incompatible
-avec le "0 €/mois, pas de CB" du projet. **AlwaysData** a un forfait gratuit permanent réel
-(1 Go disque, 256 Mo RAM, 0.25 CPU, "for life"), pas de CB demandée, et son type de site
-`user_program` permet de déclarer une commande arbitraire persistante (déclarée via leur API
-REST `api.alwaysdata.com/v1/site/`, authentification Basic avec un token API en nom
-d'utilisateur). Point de vigilance découvert dans leur doc API : chaque site a un champ
+**Changement hébergement (28/08/2026)** : Koyeb nécessitait un compte/token que l'utilisateur
+n'avait pas sous la main ; Northflank a été essayé ensuite mais bloque la création du moindre
+service (même gratuit) tant qu'aucune carte bancaire n'est enregistrée sur le compte —
+incompatible avec le "0 €/mois, pas de CB" du projet. **AlwaysData** a un forfait gratuit
+permanent réel (1 Go disque, 256 Mo RAM, 0.25 CPU, "for life"), pas de CB demandée, et son
+type de site `user_program` permet de déclarer une commande arbitraire persistante (déclarée
+via leur API REST `api.alwaysdata.com/v1/site/`, authentification Basic avec un token API en
+nom d'utilisateur). Point de vigilance découvert dans leur doc API : chaque site a un champ
 `max_idle_time` (1800s par défaut) après lequel le process est arrêté — géré par le ping
 UptimeRobot sur `/health` (section I), qui sert donc doublement de surveillance et de
 garde-fou anti-inactivité, exactement comme prévu pour Koyeb à l'origine.
 
-`whatsapp-worker` tourne comme process Node.js permanent sur **AlwaysData** (site `user_program`,
+**Changement librairie (28/08/2026)** : Baileys (TypeScript) abandonné — pairing code et QR
+tous deux cassés par un bug amont non résolu (détail section K, point 10). Remplacé par
+**whatsmeow**, une implémentation indépendante du même protocole WhatsApp multi-appareils, en
+**Go** — non affectée par ce bug, confirmé empiriquement (QR scanné avec succès sur un vrai
+téléphone, aucun crash). Seul `whatsapp-worker` change de langage ; le reste du projet
+(scraper, webapp) reste en TypeScript. Déploiement plus simple qu'avant : un binaire Go
+compilé (`go build`) tourne directement sur AlwaysData, pas besoin d'installer Go sur le
+serveur (contrairement à Node qui, lui, y est déjà installé).
+
+`whatsapp-worker` tourne comme process Go permanent sur **AlwaysData** (site `user_program`,
 `fredhindi.alwaysdata.net/whatsapp-worker/`). Composition :
 
-- Connexion Baileys au numéro WhatsApp personnel existant (pairing code, pas de QR à
-  scanner).
-- **Persistance de session dans Supabase**, pas sur le disque local Koyeb (non fiable entre
-  redéploiements). Baileys ne stocke pas qu'un simple token : il faut correctement persister
-  les `creds` (identité, clés d'appairage) ET les `Signal keys` (clés de chiffrement de
-  session, mises à jour en continu pendant l'usage). `whatsapp-worker/src/auth-state.ts`
-  implémente un store Baileys custom (`useSupabaseAuthState`) qui lit l'état complet au
-  démarrage et persiste chaque mutation (`creds.update`, écritures de clés) dans la table
-  `baileys_auth_state` — sérialisation via `BufferJSON` (fourni par Baileys) pour gérer
-  correctement les `Buffer` en JSON.
-- Boucle de polling `messages_a_envoyer` (statut `en_attente`) toutes les X minutes, envoi
+- Connexion whatsmeow au numéro WhatsApp personnel existant, via QR code (le pairing code
+  Baileys posait problème ; pas encore retesté côté whatsmeow — voir section K).
+- **Persistance de session via une connexion Postgres directe à Supabase** (`sqlstore` de
+  whatsmeow — pas l'API REST comme le reste du projet, nécessite `SUPABASE_DB_PASSWORD`, le
+  mot de passe direct de la base). whatsmeow gère lui-même son schéma (17 tables `whatsmeow_*`,
+  migrations automatiques) — pas de store custom à écrire, contrairement à la version Baileys.
+  **RLS activée sans policy sur ces 17 tables** (indispensable : Supabase expose par défaut
+  toute table `public` via son API REST avec la seule clé `anon` si RLS n'est pas activée —
+  vérifié et corrigé en urgence pendant cette session, voir section K point 10). Avantage
+  pratique : la session vit dans cette base, donc appairer depuis n'importe quelle machine
+  (ex. en local pour le tout premier appairage) suffit à ce que le worker déployé la retrouve
+  ensuite, sans transfert manuel de fichiers de session.
+- Boucle de polling `messages_a_envoyer` (statut `en_attente`) toutes les 5 minutes, envoi
   dans le groupe, marquage `envoye`.
 - **Aucune recherche depuis WhatsApp, aucun chatbot WhatsApp, aucune réponse automatique aux
   habitants** — WhatsApp reste un canal de diffusion à sens unique.
@@ -487,35 +526,44 @@ le pairing code et cibler le bon groupe, oubli du plan initial.
      `WHATSAPP_GROUP_JID` n'était pas encore défini — impossible de connaître ce JID avant
      d'être connecté. Rendu non-bloquant (vérifié à chaque appel de `pollAndSend`, pas au
      chargement du module).
-10. 🛑 **Bloqué** — déploiement AlwaysData fait (compte + token API, site `user_program` créé et
-    configuré via l'API sur `fredhindi.alwaysdata.net/whatsapp-worker/`, repo cloné, `npm
-    install` fait, SQL `baileys_auth_state` rejoué par l'utilisateur, `/health` vérifié en
-    direct — 200 OK avant connexion WhatsApp, 503 honnête ensuite comme prévu section I) mais
-    **la connexion WhatsApp elle-même échoue systématiquement**, avant tout pairing :
-    - Pairing code : génère bien un code, mais la connexion sous-jacente se referme ~2-5s après
-      avec `Error: Connection Failure` (`noise-handler.ts`, `decodeFrame`) avant que le code
-      puisse être saisi côté téléphone — cycle qui se répète, un nouveau code toutes les
-      10-25s, trop rapide pour être utilisable.
-    - Bascule QR code tentée en repli (voir commentaire "TEMPORAIRE" dans `whatsapp.ts`) : même
-      erreur exacte, le QR n'est même jamais émis.
-    - Testé sur Baileys 6.7.24 (dist-tag `legacy`) ET 7.0.0-rc14 (dist-tag `latest`) : identique.
-    - **Test décisif** : reproduit aussi en lançant `whatsapp-worker` en local, depuis la
-      connexion résidentielle de l'utilisateur (pas juste AlwaysData) — élimine l'hypothèse
-      d'un blocage réseau/IP datacenter. Recherche web : mêmes symptômes rapportés par des
-      utilisateurs sur d'autres hébergeurs cloud complètement différents (squarecloud.app,
-      etc.), avec pairing code ET QR code. C'est un bug ouvert et non résolu de Baileys
-      lui-même (proche de [WhiskeySockets/Baileys#2364](https://github.com/WhiskeySockets/Baileys/issues/2364),
-      marqué "in progress" côté mainteneurs, pas de fix connu) — pas un problème de notre code,
-      de notre config, ni de l'hébergeur choisi.
-    - **Décision (28/08/2026)** : chantier mis en pause. Rien d'autre à essayer côté
-      hébergement/config — à reprendre quand un correctif sort en amont chez Baileys (vérifier
-      `npm view @whiskeysockets/baileys dist-tags` pour une version plus récente que
-      `7.0.0-rc14`). L'infra (site AlwaysData, table Supabase, code) reste en place, prête à
-      redémarrer sans travail perdu dès que la connexion fonctionne.
-    - Reste après déblocage : `scripts/list-groups.ts` pour trouver `WHATSAPP_GROUP_JID`,
-      UptimeRobot sur `/health` (token à fournir).
+10. 🟡 **En pause, mais net progrès** — déploiement AlwaysData fait (compte + token API, site
+    `user_program` configuré sur `fredhindi.alwaysdata.net/whatsapp-worker/`, repo cloné,
+    `/health` vérifié en direct — 200 OK avant connexion WhatsApp, 503 honnête ensuite comme
+    prévu section I).
+    - **Baileys (TypeScript) abandonné** : pairing code ET QR cassés par un bug amont non
+      résolu ([WhiskeySockets/Baileys#2364](https://github.com/WhiskeySockets/Baileys/issues/2364)),
+      reproduit identiquement sur AlwaysData, en local, sur Baileys 6.7.24 et 7.0.0-rc14 —
+      détail complet conservé ci-dessous pour mémoire.
+    - **Bascule vers whatsmeow (Go)** (28/08/2026, voir section H) : réécriture complète de
+      `whatsapp-worker` en Go. Compile proprement (`go vet`, `go build`). Testé en local : le
+      QR se génère et **se scanne avec succès sur un vrai téléphone, aucun crash protocolaire**
+      — contrairement à Baileys, whatsmeow n'est pas touché par ce bug précis. C'est la
+      confirmation qu'on cherchait.
+    - **Bug de sécurité réel trouvé et corrigé dans la foulée** : les tables `whatsmeow_*»
+      (créées automatiquement par la librairie dans Postgres) avaient RLS désactivée — donc
+      lisibles/écrivables publiquement via l'API REST Supabase avec la seule clé `anon`,
+      confirmé par une requête anonyme réussie avant correction. RLS activée sans policy sur
+      les 17 tables, reconfirmé bloqué ensuite (401 sur une tentative d'insertion anonyme).
+    - **Pas encore appairé** : après plusieurs tentatives rapprochées (relances Baileys +
+      whatsmeow), WhatsApp a déclenché son propre garde-fou anti-abus côté serveur ("Impossible
+      de connecter un appareil pour le moment") au moment du scan — pas un bug de notre côté,
+      cooldown probablement temporaire (minutes à ~1h). **À reprendre** : relancer
+      `whatsapp-worker` (en local ou sur AlwaysData), régénérer une page de scan avec le QR
+      frais (voir méthode utilisée cette session : capture `QR_CODE_DATA:` dans les logs,
+      génère un PNG, publie une page Artifact), scanner rapidement (~20s de validité par code).
+    - Reste après appairage réussi : trouver `WHATSAPP_GROUP_JID` (lister les groupes du compte
+      connecté — pas encore de script dédié côté Go, `scripts/list-groups.ts` de la version
+      Baileys est obsolète), configurer la vraie commande + variables d'env du site AlwaysData
+      (actuellement `command:"true"` — placeholder), UptimeRobot sur `/health` (token à fournir).
     - `WEBAPP_URL` déjà mis à jour côté `vercel-app` (fait lors du déploiement Vercel, voir
-      "Déploiement réel" plus haut dans ce document) — indépendant de ce blocage.
+      "Déploiement réel" plus haut) — indépendant de ce chantier.
+    - **Détail Baileys (pour mémoire, abandonné)** : pairing code générait bien un code, mais
+      la connexion se refermait ~2-5s après avec `Error: Connection Failure`
+      (`noise-handler.ts`, `decodeFrame`) avant saisie possible côté téléphone, cycle répété
+      toutes les 10-25s. QR code en repli : même erreur, jamais émis. Testé sur 6.7.24 (`legacy`)
+      et 7.0.0-rc14 (`latest`) : identique. Reproduit aussi en local (pas juste AlwaysData) —
+      élimine l'hypothèse réseau/datacenter. Mêmes symptômes rapportés par des utilisateurs sur
+      d'autres hébergeurs complètement différents (squarecloud.app, etc.).
 
 ## Risques à connaître
 
