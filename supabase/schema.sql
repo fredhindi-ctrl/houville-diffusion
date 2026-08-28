@@ -135,3 +135,19 @@ as $$
   order by similarite desc
   limit limite;
 $$;
+
+-- Persistance de la session WhatsApp (Baileys) : credentials + Signal keys. Koyeb ne garantit
+-- pas un disque persistant entre redéploiements/redémarrages — la session doit survivre
+-- ailleurs. Une seule ligne ("default") : ce projet n'a qu'un seul worker.
+-- service_role uniquement (jamais RLS publique, jamais clé anon) — contient des secrets de
+-- session WhatsApp.
+create table if not exists baileys_auth_state (
+  id text primary key default 'default',
+  creds jsonb not null,
+  keys jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table baileys_auth_state enable row level security;
+-- Aucune policy créée : par défaut, RLS sans policy = accès refusé à tout sauf service_role
+-- (qui contourne RLS). C'est le comportement voulu ici.

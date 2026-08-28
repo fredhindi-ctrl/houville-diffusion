@@ -386,10 +386,22 @@ alter table baileys_auth_state enable row level security;
 -- (qui contourne RLS). C'est le comportement voulu ici.
 ```
 
-## H. Hébergement Baileys : Koyeb (abandon de Render)
+## H. Hébergement Baileys : AlwaysData (abandon de Render, puis de Koyeb, puis de Northflank)
 
-`whatsapp-worker` tourne comme process Node.js permanent sur **Koyeb Free**, région
-européenne si possible (Francfort). Composition :
+**Changement (28/08/2026)** : Koyeb nécessitait un compte/token que l'utilisateur n'avait pas
+sous la main ; Northflank a été essayé ensuite mais bloque la création du moindre service
+(même gratuit) tant qu'aucune carte bancaire n'est enregistrée sur le compte — incompatible
+avec le "0 €/mois, pas de CB" du projet. **AlwaysData** a un forfait gratuit permanent réel
+(1 Go disque, 256 Mo RAM, 0.25 CPU, "for life"), pas de CB demandée, et son type de site
+`user_program` permet de déclarer une commande arbitraire persistante (déclarée via leur API
+REST `api.alwaysdata.com/v1/site/`, authentification Basic avec un token API en nom
+d'utilisateur). Point de vigilance découvert dans leur doc API : chaque site a un champ
+`max_idle_time` (1800s par défaut) après lequel le process est arrêté — géré par le ping
+UptimeRobot sur `/health` (section I), qui sert donc doublement de surveillance et de
+garde-fou anti-inactivité, exactement comme prévu pour Koyeb à l'origine.
+
+`whatsapp-worker` tourne comme process Node.js permanent sur **AlwaysData** (site `user_program`,
+`fredhindi.alwaysdata.net/whatsapp-worker/`). Composition :
 
 - Connexion Baileys au numéro WhatsApp personnel existant (pairing code, pas de QR à
   scanner).
@@ -409,7 +421,7 @@ européenne si possible (Francfort). Composition :
 
 ## I. Surveillance : UptimeRobot
 
-UptimeRobot Free interroge `GET /health` sur Koyeb. Réponse attendue :
+UptimeRobot Free interroge `GET /health` sur AlwaysData. Réponse attendue :
 
 ```json
 { "status": "ok", "whatsapp": "connected", "database": "ok", "worker": "ok" }
@@ -431,10 +443,15 @@ boucle de polling n'est pas bloquée (timestamp du dernier passage, comparé à 
 | `CRON_SECRET` | ✅ | ❌ | ❌ | Protection du endpoint `/api/cron/scrape` |
 | `WEBAPP_URL` | ✅ | ❌ | ❌ | Lien Œdicnème inclus dans chaque message WhatsApp |
 | `OCR_SPACE_API_KEY` | ✅ | ❌ | ❌ | OCR des PDF scannés (tier gratuit, 25 000 req/mois) |
-| `PORT` | ❌ | ✅ (optionnel) | ❌ | Port HTTP du serveur `/health` (Koyeb l'injecte) |
+| `PORT` | ❌ | ✅ (optionnel) | ❌ | Port HTTP du serveur `/health` (AlwaysData l'injecte) |
+| `WHATSAPP_PHONE_NUMBER` | ❌ | ✅ | ❌ | Numéro personnel (E.164) qui demande le pairing code |
+| `WHATSAPP_GROUP_JID` | ❌ | ✅ | ❌ | Identifiant du groupe WhatsApp cible (`...@g.us`) |
 
-Le numéro WhatsApp personnel n'a pas de variable dédiée — la session est générée à la première
-connexion (pairing code) et persistée automatiquement dans `baileys_auth_state`.
+La session WhatsApp elle-même (creds + Signal keys) n'a pas de variable dédiée — générée à la
+première connexion (pairing code) et persistée automatiquement dans `baileys_auth_state`. Ajouté
+au fil de l'implémentation (28/08/2026) : `WHATSAPP_PHONE_NUMBER` et `WHATSAPP_GROUP_JID`
+n'étaient pas dans la version précédente de ce tableau — nécessaires en pratique pour demander
+le pairing code et cibler le bon groupe, oubli du plan initial.
 
 ## K. Plan de migration (ordre exact)
 
@@ -454,16 +471,34 @@ connexion (pairing code) et persistée automatiquement dans `baileys_auth_state`
    Render, `whatsapp-worker` au lieu de `render-whatsapp` — à vérifier).
 7. Valider `tsc --noEmit` sur les trois packages.
 
-**Passe 2 — diffuseur WhatsApp (session séparée, non commencée)**
+**Passe 2 — diffuseur WhatsApp (28/08/2026)**
 
-8. Ajouter `baileys_auth_state` à `supabase/schema.sql` et rejouer le script.
-9. Implémenter `whatsapp-worker/src/auth-state.ts`, `whatsapp.ts`, `queue.ts`, `index.ts` +
-   serveur `/health` — **avant de considérer la persistance de session fiable, la tester
-   réellement (déconnexion/reconnexion du worker)**, pas juste vérifier que le code compile.
-10. Déploiement manuel (hors périmètre code) : créer le projet Koyeb, configurer les variables
-    d'environnement sur les trois plateformes (Vercel × 2, Koyeb), lancer le pairing WhatsApp
-    une première fois, configurer UptimeRobot sur `/health`, mettre à jour `WEBAPP_URL` une
-    fois `webapp-oedicneme` déployé.
+8. ✅ `baileys_auth_state` ajoutée à `supabase/schema.sql` — SQL donné à l'utilisateur pour être
+   rejoué sur le vrai Supabase (même flux que pour `recherche_fts`, aucun accès SQL direct
+   disponible). **À confirmer rejoué avant le premier démarrage réel du worker.**
+9. ✅ Code écrit : `whatsapp-worker/src/auth-state.ts` (store Baileys sur Supabase, calqué sur
+   `useMultiFileAuthState`, l'implémentation officielle), `whatsapp.ts` (connexion + pairing
+   code), `queue.ts` (polling/envoi — `WHATSAPP_GROUP_JID` rendu non-bloquant au démarrage,
+   voir ci-dessous), `index.ts` (boucle + serveur `/health`), `scripts/list-groups.ts` (utilitaire
+   pour trouver le JID du groupe une fois connecté). `tsc --noEmit` propre. **Persistance de
+   session pas encore testée en conditions réelles** (déconnexion/reconnexion du worker) —
+   prévu dès que la connexion initiale fonctionne.
+   - Oubli corrigé en cours de route : `queue.ts` faisait planter le worker au démarrage si
+     `WHATSAPP_GROUP_JID` n'était pas encore défini — impossible de connaître ce JID avant
+     d'être connecté. Rendu non-bloquant (vérifié à chaque appel de `pollAndSend`, pas au
+     chargement du module).
+10. ⏳ Déploiement en cours sur **AlwaysData** (voir section H pour le changement de plateforme) :
+    - Compte + token API obtenus, projet/site `user_program` créé via l'API
+      (`fredhindi.alwaysdata.net/whatsapp-worker/`), repo cloné et `npm install` fait sur le
+      serveur par SSH (clé dédiée installée, `~/.ssh/alwaysdata_houville` en local).
+    - Reste à faire : rejouer le SQL `baileys_auth_state` (point 8), configurer la vraie
+      commande + variables d'environnement du site (`SUPABASE_URL`,
+      `SUPABASE_SERVICE_ROLE_KEY`, `WHATSAPP_PHONE_NUMBER=+33608827934`), démarrer, récupérer
+      le pairing code dans les logs et le saisir sur le téléphone, puis lancer
+      `scripts/list-groups.ts` pour trouver `WHATSAPP_GROUP_JID` et compléter la config.
+    - UptimeRobot sur `/health` pas encore configuré (token à fournir).
+    - `WEBAPP_URL` déjà mis à jour côté `vercel-app` (fait lors du déploiement Vercel, voir
+      "Déploiement réel" plus haut dans ce document).
 
 ## Risques à connaître
 
