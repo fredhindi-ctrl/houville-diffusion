@@ -59,15 +59,42 @@ ancien moteur de recherche local du prototype, plus utilisé mais pas supprimé 
 diff. Ce dossier n'est pas un repo git — pas d'historique pour revenir en arrière sur l'ancien
 `index.html` remplacé.
 
+**Déploiement réel (28/08/2026)** : repo poussé sur GitHub
+(`github.com/fredhindi-ctrl/houville-diffusion`, main), `vercel-app` et `webapp-oedicneme`
+déployés en production sur Vercel (compte `fred-ac2b`, les deux connectés au repo GitHub pour
+auto-déploiement sur futur push) :
+- Webapp Œdicnème : **https://webapp-oedicneme.vercel.app** — testée en vrai (`POST /api/search`
+  avec "voirie" → 5 résultats corrects, identiques aux tests directs sur Supabase).
+- Scraper/cron : **https://vercel-app-coral-chi.vercel.app** — cron protégé par `CRON_SECRET`
+  (généré à cette occasion, il était vide dans `.env`). Testé en vrai avec le secret : run
+  complet sur le vrai site, 20 comptes rendus + 5 actualités scannés, 0 erreur.
+- **Bug réel trouvé et corrigé au déploiement** (pas juste un souci de build) : la fonction cron
+  plantait à chaque appel (`ERR_MODULE_NOT_FOUND`), avant même la vérification du secret. Cause :
+  avec `"type": "module"`, le runtime Node de Vercel exige l'extension `.js` sur les imports
+  relatifs même depuis du code source `.ts` (`tsconfig` avait `moduleResolution: "Bundler"`, qui
+  laisse passer l'absence d'extension au typecheck mais pas à l'exécution réelle). Corrigé sur
+  tous les imports relatifs de `vercel-app`. Effet de bord découvert au passage : `shared/types.ts`
+  (à la racine du repo) n'existe pas dans l'environnement Vercel de `vercel-app` (Root Directory
+  = `vercel-app/`, donc le reste du repo n'est jamais téléversé) — dupliqué dans
+  `vercel-app/shared/types.ts`.
+- `CRON_SECRET`, `WEBAPP_URL` (pointe maintenant vers la webapp déployée ci-dessus) et toutes
+  les autres variables sont configurées sur les deux projets Vercel (production + preview).
+- `whatsapp-worker` n'est pas déployé (toujours des stubs, chantier séparé, voir section H) —
+  `WEBAPP_URL` est donc pour l'instant seulement utilisable manuellement, pas encore diffusée
+  automatiquement par WhatsApp.
+
 **Pour reprendre la prochaine fois :**
 1. ✅ SQL de `recherche_fts` (section G) rejoué sur Supabase et revérifié en direct (28/08/2026).
 2. ✅ `webapp-oedicneme/index.html` = prototype utilisateur, branché sur `/api/search` réel
    (28/08/2026, voir ci-dessus).
-3. ⏳ Reste à faire : test dans un vrai navigateur (l'UI chat elle-même, `vercel dev` + clic
-   réel) pour valider visuellement le tout — accents, tri "voirie", liens PDF, état d'erreur.
-   Pas fait le 28/08 faute d'outil navigateur dans la session.
-4. Continuer le reste de la checklist F (états UX) visuellement si pas déjà fait.
-5. Puis seulement, passer à `whatsapp-worker`/Koyeb (chantier séparé, voir section H).
+3. ✅ Déploiement réel Vercel des deux projets, avec un vrai bug de runtime trouvé et corrigé
+   (voir "Déploiement réel" ci-dessus) — c'était plus qu'un simple `vercel deploy` sans accroc.
+4. ⏳ Reste à faire : test visuel dans un vrai navigateur de l'UI chat elle-même (accents, tri
+   "voirie", liens PDF, état d'erreur) — pas fait faute d'outil navigateur dans la session, mais
+   le backend est maintenant vérifié en production réelle, pas juste en local.
+5. Continuer le reste de la checklist F (états UX) visuellement si pas déjà fait.
+6. Puis seulement, passer à `whatsapp-worker`/Koyeb (chantier séparé, voir section H) — c'est le
+   seul morceau de l'architecture qui reste non implémenté.
 
 ## Objectif du projet
 
