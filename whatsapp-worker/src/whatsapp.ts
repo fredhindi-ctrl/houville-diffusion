@@ -19,15 +19,16 @@ export async function connectWhatsApp(phoneNumber: string): Promise<WASocket> {
   const { state, saveCreds } = await useSupabaseAuthState();
   const { version } = await fetchLatestBaileysVersion();
 
-  sock = makeWASocket({
+  const socket = makeWASocket({
     version,
     auth: state,
     printQRInTerminal: false,
   });
+  sock = socket;
 
-  sock.ev.on("creds.update", saveCreds);
+  socket.ev.on("creds.update", saveCreds);
 
-  sock.ev.on("connection.update", (update) => {
+  socket.ev.on("connection.update", (update) => {
     const { connection, lastDisconnect } = update;
 
     if (connection === "open") {
@@ -52,14 +53,25 @@ export async function connectWhatsApp(phoneNumber: string): Promise<WASocket> {
   });
 
   // Pairing code demandé une seule fois, tant que la session n'est pas encore enregistrée
-  // (creds persistés dans Supabase ensuite — voir auth-state.ts).
-  if (!sock.authState.creds.registered) {
-    const code = await sock.requestPairingCode(phoneNumber);
-    console.log(`Code d'appairage WhatsApp : ${code}`);
-    console.log("Sur le téléphone : Paramètres > Appareils connectés > Lier un appareil > Lier avec le numéro de téléphone.");
+  // (creds persistés dans Supabase ensuite — voir auth-state.ts). Délai avant la demande :
+  // l'exiger immédiatement après la création du socket échoue avec les versions récentes de
+  // Baileys (428 Precondition Required) tant que la connexion WebSocket sous-jacente n'est pas
+  // encore établie — vérifié empiriquement. Référence locale au socket (pas la variable module
+  // `sock`, qui peut déjà pointer vers une connexion plus récente si une reconnexion a eu lieu
+  // entre-temps).
+  if (!socket.authState.creds.registered) {
+    setTimeout(async () => {
+      try {
+        const code = await socket.requestPairingCode(phoneNumber);
+        console.log(`Code d'appairage WhatsApp : ${code}`);
+        console.log("Sur le téléphone : Paramètres > Appareils connectés > Lier un appareil > Lier avec le numéro de téléphone.");
+      } catch (e) {
+        console.error("Échec de la demande de pairing code :", e);
+      }
+    }, 3000);
   }
 
-  return sock;
+  return socket;
 }
 
 export function getSocket(): WASocket | null {
