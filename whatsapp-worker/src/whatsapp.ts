@@ -29,7 +29,15 @@ export async function connectWhatsApp(phoneNumber: string): Promise<WASocket> {
   socket.ev.on("creds.update", saveCreds);
 
   socket.ev.on("connection.update", (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+
+    // TEMPORAIRE (28/08/2026) : pairing code cassé par un bug Baileys non résolu en amont
+    // (WhiskeySockets/Baileys#2364 — boucle "Connection Failure" au handshake Noise juste après
+    // l'émission du code, reproductible identiquement sur 6.7.x et 7.0.0-rc14). QR code en
+    // repli le temps qu'un correctif sorte — revoir plan-houville.md, section H.
+    if (qr) {
+      console.log(`QR_CODE_DATA:${qr}`);
+    }
 
     if (connection === "open") {
       connected = true;
@@ -52,24 +60,10 @@ export async function connectWhatsApp(phoneNumber: string): Promise<WASocket> {
     }
   });
 
-  // Pairing code demandé une seule fois, tant que la session n'est pas encore enregistrée
-  // (creds persistés dans Supabase ensuite — voir auth-state.ts). Délai avant la demande :
-  // l'exiger immédiatement après la création du socket échoue avec les versions récentes de
-  // Baileys (428 Precondition Required) tant que la connexion WebSocket sous-jacente n'est pas
-  // encore établie — vérifié empiriquement. Référence locale au socket (pas la variable module
-  // `sock`, qui peut déjà pointer vers une connexion plus récente si une reconnexion a eu lieu
-  // entre-temps).
-  if (!socket.authState.creds.registered) {
-    setTimeout(async () => {
-      try {
-        const code = await socket.requestPairingCode(phoneNumber);
-        console.log(`Code d'appairage WhatsApp : ${code}`);
-        console.log("Sur le téléphone : Paramètres > Appareils connectés > Lier un appareil > Lier avec le numéro de téléphone.");
-      } catch (e) {
-        console.error("Échec de la demande de pairing code :", e);
-      }
-    }, 3000);
-  }
+  // Pairing code désactivé pour l'instant (voir le commentaire TEMPORAIRE plus haut) — Baileys
+  // émet automatiquement un événement `qr` dans connection.update tant qu'aucun pairing code
+  // n'est demandé, c'est ce flux QR qui est utilisé à la place ci-dessus. `phoneNumber` reste
+  // utile pour la reconnexion automatique (voir le handler "close").
 
   return socket;
 }
