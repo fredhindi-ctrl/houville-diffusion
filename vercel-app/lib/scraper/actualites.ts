@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import type { ActualiteScrapee } from "../../../shared/types";
+import type { ActualiteScrapee } from "../../shared/types.js";
 
 const BASE_URL = "http://www.houvillelabranche.fr";
 const URL_LISTING = `${BASE_URL}/fr/actualites`;

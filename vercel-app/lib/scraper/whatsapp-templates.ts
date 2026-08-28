@@ -1,4 +1,4 @@
-import type { ActualiteScrapee, CompteRenduScrape } from "../../../shared/types";
+import type { ActualiteScrapee, CompteRenduScrape } from "../../shared/types.js";
 
 // Voir MESSAGES.md à la racine du repo pour la conception détaillée de ces gabarits
 // (testés contre de vraies données du site avant d'être figés ici).

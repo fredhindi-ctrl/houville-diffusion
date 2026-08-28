@@ -1,8 +1,8 @@
-import { supabase } from "../supabase";
-import { scrapeActualites } from "./actualites";
-import { scrapeComptesRendus } from "./comptes-rendus";
-import { extractPdfText } from "./pdf";
-import { formatMessageActualite, formatMessageCompteRendu } from "./whatsapp-templates";
+import { supabase } from "../supabase.js";
+import { scrapeActualites } from "./actualites.js";
+import { scrapeComptesRendus } from "./comptes-rendus.js";
+import { extractPdfText } from "./pdf.js";
+import { formatMessageActualite, formatMessageCompteRendu } from "./whatsapp-templates.js";
 
 export interface ResultatScrape {
   comptesRendus: { scannes: number; nouveaux: number };

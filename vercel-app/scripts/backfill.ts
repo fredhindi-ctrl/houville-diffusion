@@ -1,7 +1,7 @@
-import { supabase } from "../lib/supabase";
-import { getTotalPagesActualites, scrapeActualites } from "../lib/scraper/actualites";
-import { getTotalPagesComptesRendus, scrapeComptesRendus } from "../lib/scraper/comptes-rendus";
-import { extractPdfText } from "../lib/scraper/pdf";
+import { supabase } from "../lib/supabase.js";
+import { getTotalPagesActualites, scrapeActualites } from "../lib/scraper/actualites.js";
+import { getTotalPagesComptesRendus, scrapeComptesRendus } from "../lib/scraper/comptes-rendus.js";
+import { extractPdfText } from "../lib/scraper/pdf.js";
 
 // Backfill historique — à lancer UNE SEULE FOIS, à la main (npm run backfill), pas via le cron.
 //

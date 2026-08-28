@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import type { CompteRenduScrape } from "../../../shared/types";
+import type { CompteRenduScrape } from "../../shared/types.js";
 
 const BASE_URL = "http://www.houvillelabranche.fr";
 const URL_LISTING = `${BASE_URL}/fr/comptes-rendus`;
