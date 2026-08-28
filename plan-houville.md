@@ -487,18 +487,35 @@ le pairing code et cibler le bon groupe, oubli du plan initial.
      `WHATSAPP_GROUP_JID` n'était pas encore défini — impossible de connaître ce JID avant
      d'être connecté. Rendu non-bloquant (vérifié à chaque appel de `pollAndSend`, pas au
      chargement du module).
-10. ⏳ Déploiement en cours sur **AlwaysData** (voir section H pour le changement de plateforme) :
-    - Compte + token API obtenus, projet/site `user_program` créé via l'API
-      (`fredhindi.alwaysdata.net/whatsapp-worker/`), repo cloné et `npm install` fait sur le
-      serveur par SSH (clé dédiée installée, `~/.ssh/alwaysdata_houville` en local).
-    - Reste à faire : rejouer le SQL `baileys_auth_state` (point 8), configurer la vraie
-      commande + variables d'environnement du site (`SUPABASE_URL`,
-      `SUPABASE_SERVICE_ROLE_KEY`, `WHATSAPP_PHONE_NUMBER=+33608827934`), démarrer, récupérer
-      le pairing code dans les logs et le saisir sur le téléphone, puis lancer
-      `scripts/list-groups.ts` pour trouver `WHATSAPP_GROUP_JID` et compléter la config.
-    - UptimeRobot sur `/health` pas encore configuré (token à fournir).
+10. 🛑 **Bloqué** — déploiement AlwaysData fait (compte + token API, site `user_program` créé et
+    configuré via l'API sur `fredhindi.alwaysdata.net/whatsapp-worker/`, repo cloné, `npm
+    install` fait, SQL `baileys_auth_state` rejoué par l'utilisateur, `/health` vérifié en
+    direct — 200 OK avant connexion WhatsApp, 503 honnête ensuite comme prévu section I) mais
+    **la connexion WhatsApp elle-même échoue systématiquement**, avant tout pairing :
+    - Pairing code : génère bien un code, mais la connexion sous-jacente se referme ~2-5s après
+      avec `Error: Connection Failure` (`noise-handler.ts`, `decodeFrame`) avant que le code
+      puisse être saisi côté téléphone — cycle qui se répète, un nouveau code toutes les
+      10-25s, trop rapide pour être utilisable.
+    - Bascule QR code tentée en repli (voir commentaire "TEMPORAIRE" dans `whatsapp.ts`) : même
+      erreur exacte, le QR n'est même jamais émis.
+    - Testé sur Baileys 6.7.24 (dist-tag `legacy`) ET 7.0.0-rc14 (dist-tag `latest`) : identique.
+    - **Test décisif** : reproduit aussi en lançant `whatsapp-worker` en local, depuis la
+      connexion résidentielle de l'utilisateur (pas juste AlwaysData) — élimine l'hypothèse
+      d'un blocage réseau/IP datacenter. Recherche web : mêmes symptômes rapportés par des
+      utilisateurs sur d'autres hébergeurs cloud complètement différents (squarecloud.app,
+      etc.), avec pairing code ET QR code. C'est un bug ouvert et non résolu de Baileys
+      lui-même (proche de [WhiskeySockets/Baileys#2364](https://github.com/WhiskeySockets/Baileys/issues/2364),
+      marqué "in progress" côté mainteneurs, pas de fix connu) — pas un problème de notre code,
+      de notre config, ni de l'hébergeur choisi.
+    - **Décision (28/08/2026)** : chantier mis en pause. Rien d'autre à essayer côté
+      hébergement/config — à reprendre quand un correctif sort en amont chez Baileys (vérifier
+      `npm view @whiskeysockets/baileys dist-tags` pour une version plus récente que
+      `7.0.0-rc14`). L'infra (site AlwaysData, table Supabase, code) reste en place, prête à
+      redémarrer sans travail perdu dès que la connexion fonctionne.
+    - Reste après déblocage : `scripts/list-groups.ts` pour trouver `WHATSAPP_GROUP_JID`,
+      UptimeRobot sur `/health` (token à fournir).
     - `WEBAPP_URL` déjà mis à jour côté `vercel-app` (fait lors du déploiement Vercel, voir
-      "Déploiement réel" plus haut dans ce document).
+      "Déploiement réel" plus haut dans ce document) — indépendant de ce blocage.
 
 ## Risques à connaître
 
