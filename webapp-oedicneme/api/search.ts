@@ -103,8 +103,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           extrait,
         };
       })
-      // Préserve l'ordre de classement renvoyé par la recherche (ts_rank / similarité).
-      .sort((a, b) => ids.indexOf(a.compte_rendu_id) - ids.indexOf(b.compte_rendu_id));
+      // Les candidats sont choisis par pertinence (ts_rank / similarité, voir recherche_fts /
+      // recherche_floue), mais affichés du plus récent au plus ancien — plus lisible pour des
+      // archives municipales que l'ordre de pertinence brut.
+      .sort((a, b) => (a.date_conseil < b.date_conseil ? 1 : a.date_conseil > b.date_conseil ? -1 : 0));
 
     res.status(200).json({ count: results.length, results });
   } catch {
