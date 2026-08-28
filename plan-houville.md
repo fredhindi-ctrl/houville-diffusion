@@ -82,6 +82,16 @@ auto-déploiement sur futur push) :
 - `whatsapp-worker` n'est pas déployé (toujours des stubs, chantier séparé, voir section H) —
   `WEBAPP_URL` est donc pour l'instant seulement utilisable manuellement, pas encore diffusée
   automatiquement par WhatsApp.
+- **2ᵉ bug réel trouvé après coup (404 en prod)** : le `rootDirectory` des deux projets Vercel
+  n'était jamais enregistré côté projet (`null`) — les déploiements CLI initiaux marchaient
+  seulement parce qu'ils étaient lancés depuis le bon sous-dossier local. Le push du fix
+  précédent a déclenché l'intégration Git (auto-déploiement sur push, jamais désactivé), qui
+  clone tout le repo à la racine et n'y a rien trouvé → build vide → 404 constaté par
+  l'utilisateur sur `webapp-oedicneme.vercel.app`. Corrigé en réglant `rootDirectory`
+  explicitement sur les deux projets (`vercel-app`, `webapp-oedicneme`) via l'API Vercel, puis
+  redéploiement forcé depuis Git. Revérifié en vrai : page 200, asset mascotte servi, recherche
+  fonctionnelle, cron protégé. Un 3ᵉ projet parasite (`houville-diffusion`, créé automatiquement
+  à la première connexion GitHub, `rootDirectory` également `null`) a été supprimé sur demande.
 
 **Pour reprendre la prochaine fois :**
 1. ✅ SQL de `recherche_fts` (section G) rejoué sur Supabase et revérifié en direct (28/08/2026).
