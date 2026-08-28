@@ -39,9 +39,13 @@ export async function connectWhatsApp(phoneNumber: string): Promise<WASocket> {
       connected = false;
       const statusCode = (lastDisconnect?.error as { output?: { statusCode?: number } } | undefined)?.output
         ?.statusCode;
-      const loggedOut = statusCode === DisconnectReason.loggedOut;
-      console.log(`WhatsApp déconnecté (code ${statusCode ?? "?"}).${loggedOut ? " Session invalidée — repairing nécessaire." : " Reconnexion..."}`);
-      if (!loggedOut) {
+      // Avant le tout premier appairage, Baileys referme systématiquement la connexion peu après
+      // avoir émis le pairing code (y compris avec un code 401/loggedOut) — ce n'est pas un vrai
+      // logout tant qu'aucune session n'a jamais été enregistrée. Ne considérer "loggedOut" comme
+      // définitif que si on avait déjà une session enregistrée.
+      const reallyLoggedOut = statusCode === DisconnectReason.loggedOut && state.creds.registered;
+      console.log(`WhatsApp déconnecté (code ${statusCode ?? "?"}).${reallyLoggedOut ? " Session invalidée — repairing nécessaire." : " Reconnexion..."}`);
+      if (!reallyLoggedOut) {
         connectWhatsApp(phoneNumber).catch((e) => console.error("Échec de reconnexion :", e));
       }
     }
