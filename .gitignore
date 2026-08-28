@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.local
+dist/
+.vercel/
+*.log
+
+# Session Baileys (credentials WhatsApp — ne jamais committer)
+render-whatsapp/auth_session/
