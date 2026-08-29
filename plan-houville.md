@@ -565,7 +565,9 @@ le pairing code et cibler le bon groupe, oubli du plan initial.
     sur le vrai compte rendu du 20 août 2026 (voir section "webapp Œdicnème" plus haut), inséré
     dans `messages_a_envoyer`, repris par le worker, envoyé dans le groupe "Oenicdeme", marqué
     `statut=envoye` en base — confirmé dans les logs AlwaysData ("Message 2 envoyé et
-    marqué.") et par une relecture directe de la table.
+    marqué.") et par une relecture directe de la table. **Confirmé reçu par l'utilisateur sur
+    son téléphone dans le groupe WhatsApp** — le pipeline est validé de bout en bout, pas
+    seulement côté serveur.
 
     **Reste** : UptimeRobot sur `/health` (token à fournir — sert aussi de garde-fou
     anti-inactivité AlwaysData, voir section H).
