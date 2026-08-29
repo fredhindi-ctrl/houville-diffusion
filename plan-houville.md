@@ -510,7 +510,7 @@ le pairing code et cibler le bon groupe, oubli du plan initial.
    Render, `whatsapp-worker` au lieu de `render-whatsapp` — à vérifier).
 7. Valider `tsc --noEmit` sur les trois packages.
 
-**Passe 2 — diffuseur WhatsApp (28/08/2026)**
+**Passe 2 — diffuseur WhatsApp (28-29/08/2026) — TERMINÉE**
 
 8. ✅ `baileys_auth_state` ajoutée à `supabase/schema.sql` — SQL donné à l'utilisateur pour être
    rejoué sur le vrai Supabase (même flux que pour `recherche_fts`, aucun accès SQL direct
@@ -526,44 +526,61 @@ le pairing code et cibler le bon groupe, oubli du plan initial.
      `WHATSAPP_GROUP_JID` n'était pas encore défini — impossible de connaître ce JID avant
      d'être connecté. Rendu non-bloquant (vérifié à chaque appel de `pollAndSend`, pas au
      chargement du module).
-10. 🟡 **En pause, mais net progrès** — déploiement AlwaysData fait (compte + token API, site
-    `user_program` configuré sur `fredhindi.alwaysdata.net/whatsapp-worker/`, repo cloné,
-    `/health` vérifié en direct — 200 OK avant connexion WhatsApp, 503 honnête ensuite comme
-    prévu section I).
-    - **Baileys (TypeScript) abandonné** : pairing code ET QR cassés par un bug amont non
-      résolu ([WhiskeySockets/Baileys#2364](https://github.com/WhiskeySockets/Baileys/issues/2364)),
-      reproduit identiquement sur AlwaysData, en local, sur Baileys 6.7.24 et 7.0.0-rc14 —
-      détail complet conservé ci-dessous pour mémoire.
-    - **Bascule vers whatsmeow (Go)** (28/08/2026, voir section H) : réécriture complète de
-      `whatsapp-worker` en Go. Compile proprement (`go vet`, `go build`). Testé en local : le
-      QR se génère et **se scanne avec succès sur un vrai téléphone, aucun crash protocolaire**
-      — contrairement à Baileys, whatsmeow n'est pas touché par ce bug précis. C'est la
-      confirmation qu'on cherchait.
-    - **Bug de sécurité réel trouvé et corrigé dans la foulée** : les tables `whatsmeow_*»
-      (créées automatiquement par la librairie dans Postgres) avaient RLS désactivée — donc
-      lisibles/écrivables publiquement via l'API REST Supabase avec la seule clé `anon`,
-      confirmé par une requête anonyme réussie avant correction. RLS activée sans policy sur
-      les 17 tables, reconfirmé bloqué ensuite (401 sur une tentative d'insertion anonyme).
-    - **Pas encore appairé** : après plusieurs tentatives rapprochées (relances Baileys +
-      whatsmeow), WhatsApp a déclenché son propre garde-fou anti-abus côté serveur ("Impossible
-      de connecter un appareil pour le moment") au moment du scan — pas un bug de notre côté,
-      cooldown probablement temporaire (minutes à ~1h). **À reprendre** : relancer
-      `whatsapp-worker` (en local ou sur AlwaysData), régénérer une page de scan avec le QR
-      frais (voir méthode utilisée cette session : capture `QR_CODE_DATA:` dans les logs,
-      génère un PNG, publie une page Artifact), scanner rapidement (~20s de validité par code).
-    - Reste après appairage réussi : trouver `WHATSAPP_GROUP_JID` (lister les groupes du compte
-      connecté — pas encore de script dédié côté Go, `scripts/list-groups.ts` de la version
-      Baileys est obsolète), configurer la vraie commande + variables d'env du site AlwaysData
-      (actuellement `command:"true"` — placeholder), UptimeRobot sur `/health` (token à fournir).
-    - `WEBAPP_URL` déjà mis à jour côté `vercel-app` (fait lors du déploiement Vercel, voir
-      "Déploiement réel" plus haut) — indépendant de ce chantier.
-    - **Détail Baileys (pour mémoire, abandonné)** : pairing code générait bien un code, mais
-      la connexion se refermait ~2-5s après avec `Error: Connection Failure`
-      (`noise-handler.ts`, `decodeFrame`) avant saisie possible côté téléphone, cycle répété
-      toutes les 10-25s. QR code en repli : même erreur, jamais émis. Testé sur 6.7.24 (`legacy`)
-      et 7.0.0-rc14 (`latest`) : identique. Reproduit aussi en local (pas juste AlwaysData) —
-      élimine l'hypothèse réseau/datacenter. Mêmes symptômes rapportés par des utilisateurs sur
-      d'autres hébergeurs complètement différents (squarecloud.app, etc.).
+10. ✅ **Fait et vérifié en conditions réelles (29/08/2026)** — `whatsapp-worker` (Go +
+    whatsmeow) est en production sur AlwaysData, appairé, connecté, et a envoyé un vrai message
+    dans le vrai groupe WhatsApp. Pipeline complet scraper → message → WhatsApp opérationnel
+    de bout en bout.
+
+    **Cause racine du blocage précédent trouvée** : ni un bug ni un cooldown WhatsApp — le
+    téléphone était sur **données mobiles (4G/5G)** lors de toutes les tentatives échouées
+    ("check your connection"). Confirmé en isolant la variable réseau (le compte savait déjà
+    lier des appareils par ailleurs, ex. WhatsApp Web — donc pas une restriction de compte).
+    Sur **WiFi**, appairage réussi du premier coup : "Appairage réussi." puis "WhatsApp
+    connecté." dans les logs, confirmé par `/health` →
+    `{"status":"ok","whatsapp":"connected",...}`. Hypothèse : le device linking WhatsApp
+    emprunte un chemin réseau plus sensible que la messagerie classique, filtré/perturbé par
+    l'opérateur mobile utilisé. **À retenir pour un futur repairing (perte de session) :
+    toujours appairer en WiFi, jamais en données mobiles.**
+
+    **`WHATSAPP_GROUP_JID` trouvé** : utilitaire `whatsapp-worker/cmd/listgroups/main.go`
+    (package Go séparé, réutilise la session Postgres déjà appairée, pas de nouveau QR requis)
+    a listé les 54 groupes existants — aucun ne correspondait, l'utilisateur a créé un nouveau
+    groupe "Oenicdeme" dans l'app, relisté ensuite pour récupérer son JID
+    (`120363428873865750@g.us`), configuré sur le site AlwaysData.
+
+    **Bug réel trouvé en préparant un message de test réaliste** : `whatsapp-templates.ts`
+    pointait encore vers Telegram (`@oedicneme_bot`, `t.me/...`) dans le rappel de recherche en
+    bas de chaque message, alors que le plan (section C) disait explicitement que ça devait
+    être remplacé par un lien vers la webapp Œdicnème — jamais fait. Corrigé :
+    `rappelRecherche()` utilise maintenant `WEBAPP_URL` (omet la ligne de lien si absent plutôt
+    que d'envoyer une URL cassée).
+
+    **2ᵉ bug réel trouvé pendant le test end-to-end** : le tout premier `poll()` après chaque
+    (re)démarrage était presque systématiquement ignoré ("WhatsApp non connecté") —
+    `client.Connect()` de whatsmeow revient dès que la connexion est *amorcée*, pas une fois
+    l'événement `Connected` reçu. Corrigé avec `waitConnected()` (attente bornée 3s max, retour
+    anticipé dès connexion réelle) avant le premier poll.
+
+    **Test end-to-end réel** : message généré avec le vrai template (`formatMessageCompteRendu`)
+    sur le vrai compte rendu du 20 août 2026 (voir section "webapp Œdicnème" plus haut), inséré
+    dans `messages_a_envoyer`, repris par le worker, envoyé dans le groupe "Oenicdeme", marqué
+    `statut=envoye` en base — confirmé dans les logs AlwaysData ("Message 2 envoyé et
+    marqué.") et par une relecture directe de la table.
+
+    **Reste** : UptimeRobot sur `/health` (token à fournir — sert aussi de garde-fou
+    anti-inactivité AlwaysData, voir section H).
+
+    **Historique du blocage Baileys (abandonné, pour mémoire)** : pairing code ET QR cassés
+    par un bug amont non résolu
+    ([WhiskeySockets/Baileys#2364](https://github.com/WhiskeySockets/Baileys/issues/2364)) —
+    la connexion se refermait ~2-5s après avec `Error: Connection Failure`
+    (`noise-handler.ts`, `decodeFrame`), reproduit identiquement sur AlwaysData, en local, sur
+    Baileys 6.7.24 (`legacy`) et 7.0.0-rc14 (`latest`). Sur le moment, ce blocage réseau
+    mobile ressemblait au même genre de problème — en rétrospective ce sont deux causes
+    différentes qui se sont succédé (bug Baileys, puis réseau mobile sur whatsmeow), pas la
+    même confondue deux fois. Bascule vers whatsmeow (Go) le 28/08/2026 (voir section H) :
+    implémentation indépendante du même protocole, non affectée par ce bug précis — confirmé
+    dès le premier test local (QR généré et scanné sans crash).
 
 ## Risques à connaître
 
