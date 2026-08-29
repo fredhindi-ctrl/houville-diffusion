@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync/atomic"
+	"time"
 
 	_ "github.com/lib/pq"
 	"go.mau.fi/whatsmeow"
@@ -33,6 +34,20 @@ var connected atomic.Bool
 
 func isWhatsAppConnected() bool {
 	return connected.Load()
+}
+
+// waitConnected attend jusqu'à `timeout` que la connexion soit vraiment établie (événement
+// Connected reçu), pour éviter que le tout premier poll après un (re)démarrage tombe presque
+// toujours pendant la fenêtre où client.Connect() est revenu mais la session n'est pas encore
+// prête. Retourne dès que connecté, sans attendre le timeout complet.
+func waitConnected(timeout time.Duration) {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if isWhatsAppConnected() {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // buildPostgresDSN construit le DSN whatsmeow à partir de SUPABASE_URL (https://<ref>.supabase.co)

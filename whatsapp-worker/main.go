@@ -47,6 +47,10 @@ func main() {
 		}
 	}
 
+	// client.Connect() revient dès que la connexion est amorcée, pas une fois établie —
+	// laisse un court instant pour que l'événement Connected ait une vraie chance d'arriver
+	// avant le tout premier poll (sinon il est quasi toujours ignoré inutilement).
+	waitConnected(3 * time.Second)
 	poll()
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
