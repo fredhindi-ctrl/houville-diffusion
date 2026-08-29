@@ -3,15 +3,17 @@ import type { ActualiteScrapee, CompteRenduScrape } from "../../shared/types.js"
 // Voir MESSAGES.md à la racine du repo pour la conception détaillée de ces gabarits
 // (testés contre de vraies données du site avant d'être figés ici).
 
-const RAPPEL_TELEGRAM_CR = [
-  "🔍 Pour rechercher un mot-clé dans les anciens comptes rendus, direction Telegram :",
-  "🦉 @oedicneme_bot",
-  "https://t.me/oedicneme_bot",
-].join("\n");
-
-const RAPPEL_TELEGRAM_ACTU = ["🔍 Recherche dans les comptes rendus : 🦉 @oedicneme_bot", "https://t.me/oedicneme_bot"].join(
-  "\n"
-);
+// Telegram a été entièrement retiré du projet (voir plan-houville.md, section C) — remplacé
+// par un lien vers la webapp de recherche Œdicnème. WEBAPP_URL peut être vide en dev/preview
+// (pas encore déployée) : dans ce cas on omet juste la ligne de lien plutôt que d'envoyer une
+// URL cassée.
+function rappelRecherche(intro: string): string {
+  const lignes = [intro];
+  if (process.env.WEBAPP_URL) {
+    lignes.push(process.env.WEBAPP_URL);
+  }
+  return lignes.join("\n");
+}
 
 // Formule quasi systématique des décisions actées dans les comptes rendus de conseil
 // municipal : une phrase commençant par un verbe de délibération. Testé sur un vrai compte
@@ -73,7 +75,12 @@ export function formatMessageCompteRendu(cr: CompteRenduScrape, texteOcr: string
     lignes.push("");
   }
 
-  lignes.push("📄 Compte rendu complet (PDF) :", cr.url_pdf, "", RAPPEL_TELEGRAM_CR);
+  lignes.push(
+    "📄 Compte rendu complet (PDF) :",
+    cr.url_pdf,
+    "",
+    rappelRecherche("🦉 Pour rechercher un mot-clé dans les archives, direction Œdicnème :")
+  );
 
   return lignes.join("\n");
 }
@@ -87,7 +94,7 @@ export function formatMessageActualite(actu: ActualiteScrapee): string {
     lignes.push(tronquer(extraitUtile, 200));
   }
 
-  lignes.push("", "🔗 En savoir plus :", actu.url, "", RAPPEL_TELEGRAM_ACTU);
+  lignes.push("", "🔗 En savoir plus :", actu.url, "", rappelRecherche("🦉 Recherche dans les archives : Œdicnème"));
 
   return lignes.join("\n");
 }
