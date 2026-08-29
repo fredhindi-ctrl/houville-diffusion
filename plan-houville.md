@@ -107,19 +107,35 @@ auto-déploiement sur futur push) :
   — mettait un site censé être public derrière un mur de connexion Vercel, puisqu'aucun
   domaine personnalisé n'est configuré. Désactivée via l'API (`ssoProtection: null`), reconfirmé 200
   sans redirection depuis un client anonyme.
-- **Débordement horizontal sur mobile (confirmé par l'utilisateur, scroll horizontal réel,
-  bouton d'envoi coupé au bord de l'écran)** : cause exacte non identifiée malgré inspection
-  approfondie du CSS (chaîne flex/grid `.form`/`.composer`/`.send` semblait correcte sur le
-  papier). Filet de sécurité appliqué (`overflow-x:hidden` sur `html,body` et `.app`,
-  `min-width:0` sur `.form`) — **pas reconfirmé par l'utilisateur après coup**.
-- **Composer nécessitant un scroll de page pour être visible sur mobile** : le composer est
-  imbriqué deux niveaux de grille sous `.app` (`main > .chatPane > .composer`). Ajouté
-  `height:100%` à chaque niveau imbriqué (`main`, `.chatPane`), en plus du `min-height:0` déjà
-  présent — hypothèse : Safari iOS a besoin des deux, pas seulement `min-height:0`, dans une
-  grille imbriquée sur plusieurs niveaux. **Retesté par l'utilisateur : «pas terrible», pas
-  concluant.** Chantier arrêté là à sa demande, pas relancé. À reprendre avec, idéalement, un
-  vrai outil d'inspection mobile (DevTools distant ou navigateur pilotable) plutôt que du
-  CSS à l'aveugle — c'est la limite atteinte cette session (aucun outil navigateur disponible).
+- **Débordement horizontal + composer caché/scroll de page sur mobile — ✅ résolu (29/08/2026),
+  confirmé par l'utilisateur sur son iPhone.** Plusieurs manches ont été nécessaires :
+  1. Filets de sécurité initiaux (`overflow-x:hidden`, `min-width:0` sur `.form`,
+     `height:100%` sur `main`/`.chatPane` en plus de `min-height:0`) — pas concluant
+     (« pas terrible » selon l'utilisateur), posé à l'aveugle sans outil de rendu.
+  2. **Percée méthodologique** : découverte que **Chrome/Edge sont installés localement** et
+     peuvent faire un rendu headless avec capture d'écran
+     (`chrome.exe --headless --window-size=390,844 --virtual-time-budget=6000 --screenshot=...`)
+     — permet de voir un vrai rendu au lieu de deviner sur le CSS. À réutiliser pour tout futur
+     débogage visuel de ce projet (ou d'autres artefacts web), même si ça ne reproduit pas les
+     bugs spécifiques à Safari (voir point 4).
+  3. Composer passé en `position:fixed` (ancré au bas du viewport, comme WhatsApp Web/Messenger)
+     au lieu de compter sur la chaîne de hauteurs de grille imbriquée — plus robuste par
+     conception. `#chat` a reçu un `padding-bottom` équivalent pour ne pas cacher les derniers
+     messages derrière.
+  4. Ajout d'`overflow:hidden` (pas juste `overflow-x`) sur `html,body` et `.app` pour empêcher
+     tout scroll de page — seul `#chat` doit scroller en interne.
+  5. **Cause racine réelle, trouvée en lisant le CSS ligne à ligne après le rendu Chrome
+     n'ayant rien révélé** : `.app` avait `min-height:100vh` **et**
+     `height:var(--mobile-vh, 100dvh)` en même temps sur mobile — `min-height` gagne toujours
+     un conflit avec `height`. Or `100vh` est le bug classique de Safari iOS : il mesure la
+     hauteur maximale (barre d'adresse rétractée), plus grande que l'écran réellement visible.
+     `.app` était donc rendu plus haut que l'écran, et avec le blocage de scroll de l'étape 4,
+     le haut de page (header) devenait inatteignable. Retrait de ce `min-height:100vh` en trop
+     — un seul point de vérité (`height:var(--mobile-vh, 100dvh)`, déjà correct) suffit.
+  Leçon pour la suite : sur ce genre de bug (hauteur/viewport mobile), vérifier en premier
+  toute règle `min-height`/`min-width` qui pourrait entrer en conflit avec la règle
+  `height`/`width` voulue, et utiliser le rendu headless local dès le départ plutôt qu'en
+  dernier recours.
 
 **Pour reprendre la prochaine fois :**
 1. ✅ SQL de `recherche_fts` (section G) rejoué sur Supabase et revérifié en direct (28/08/2026).
