@@ -96,7 +96,7 @@ mark{background:#ffe28a;padding:0 3px;border-radius:4px;color:inherit}
 .introLabel{font-family:Georgia,serif;font-size:1.55rem;margin-top:-26px}
 .introLabel small{display:block;font-family:Inter,sans-serif;font-size:.78rem;color:#74624d;margin-top:5px}
 
-.toast{position:fixed;left:50%;bottom:92px;transform:translate(-50%,18px);background:#30271d;color:#fff8e7;padding:10px 14px;border-radius:999px;opacity:0;pointer-events:none;transition:.25s;z-index:20;font-size:.8rem}
+.toast{position:fixed;left:50%;bottom:92px;transform:translate(-50%,18px);background:#30271d;color:#fff8e7;padding:10px 14px;border-radius:999px;opacity:0;pointer-events:none;transition:.25s;z-index:21;font-size:.8rem}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
 @media (max-width:800px){
@@ -195,13 +195,13 @@ mark{background:#ffe28a;padding:0 3px;border-radius:4px;color:inherit}
   .chatPane{
     min-height:0;
     height:100%;
-    grid-template-rows:minmax(0,1fr) auto;
+    grid-template-rows:1fr;
   }
 
   .chat{
     min-height:0;
-    padding:14px 11px 12px;
-    scroll-padding-bottom:96px;
+    padding:14px 11px calc(88px + env(safe-area-inset-bottom));
+    scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom));
   }
 
   .row{
@@ -305,8 +305,11 @@ mark{background:#ffe28a;padding:0 3px;border-radius:4px;color:inherit}
   }
 
   .composer{
-    position:relative;
-    z-index:8;
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:20;
     padding:
       8px
       9px
@@ -956,7 +959,7 @@ setTimeout(() => {
   currentIdleIndex = randomIdleIndex(false);
   setIdleFrame(currentIdleIndex, false);
   welcome();
-}, 1650);
+}, 3200);
 
 /* V10 mobile: conserve le champ visible quand le clavier virtuel s'ouvre. */
 (function(){
