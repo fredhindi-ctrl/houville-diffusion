@@ -1,616 +1,294 @@
-# Plan — Diffusion WhatsApp & recherche Œdicnème — Houville-la-Branche
+# Plan technique — Houville-diffusion
 
-*Ce document est la source de vérité du projet. Toute décision qui y figure prévaut sur les
-échanges précédents. Dernière refonte majeure : abandon de Telegram au profit d'une WebApp de
-recherche (Œdicnème), déterministe, sans IA.*
+**Source de vérité actuelle du POC Houville-la-Branche.**
 
-## État d'avancement (27/08/2026, à reprendre ici)
+Mise à jour : **16 septembre 2026**.
 
-**Fait et validé en conditions réelles :**
-- Telegram entièrement retiré (code, deps, env vars, doc).
-- `render-whatsapp/` renommé `whatsapp-worker/` (partout dans le code et la doc).
-- Migration SQL recherche (extensions `unaccent`/`pg_trgm`, config `french_unaccent`, RLS
-  lecture publique) appliquée sur le vrai projet Supabase et testée.
-- `webapp-oedicneme/api/search.ts` et `index.html` construits, testés dans un vrai navigateur
-  (Playwright) contre les vraies données (54 comptes rendus).
+L'ancien historique détaillé des essais Baileys, Koyeb, Render et Telegram reste accessible
+dans l'historique Git. Il ne décrit plus l'architecture courante et n'est donc plus conservé
+dans ce document de référence.
 
-**Deux bugs trouvés en testant l'interface réelle (pas juste la logique) :**
-1. **Corrigé** : `index.html` n'avait pas de `<meta charset="utf-8">` → tous les accents et
-   emojis s'affichaient en mojibake ("Å'dicnÃ¨me" au lieu de "Œdicnème"). Fixé.
-2. **Corrigé et confirmé (28/08/2026)** : le stemmer français de Postgres fusionnait "voirie"
-   et "voir" (même racine Snowball) — chercher "voirie" remontait 3 résultats sur 5 qui ne
-   parlent que de "voir si..." sans rapport avec la voirie. Fonction `recherche_fts` mise à
-   jour avec un bonus de classement pour les correspondances exactes (voir section G), SQL
-   rejoué par l'utilisateur sur le vrai Supabase. **Revérifié en direct** (appel `recherche_fts`
-   via l'API REST, clé `anon`, données réelles) : "voirie" remonte maintenant 3/3 résultats
-   pertinents (rangs 1.06-1.09), plus aucun faux positif "voir". Jointure `comptes_rendus`
-   (lecture RLS anon) et recherche insensible aux accents ("ecole" → "École") revérifiées aussi.
-   **Non testé cette fois** : le clic-à-clic dans l'UI chat elle-même (pas d'outil navigateur
-   disponible dans cette session) — seul le chemin backend/données a été rejoué, avec les mêmes
-   identifiants (clé anon) et le même appel que fait `api/search.ts`.
-
-**Pas commencé** : `whatsapp-worker` (Baileys, persistance session Supabase, `/health`),
-déploiement Koyeb/UptimeRobot, déploiement réel Vercel (les deux projets), mise à jour de
-`WEBAPP_URL`. Voir sections G/H/I/K plus bas — ce sont des **plans écrits, pas du code
-implémenté**. La formulation de ces sections avait initialement laissé penser qu'elles étaient
-en cours dans cette même passe ; ce n'est pas le cas, c'est explicitement reporté à une session
-dédiée (voir section K).
-
-**Nouveau (28/08/2026)** : `webapp-oedicneme/index.html` a été remplacé par le prototype visuel
-fourni par l'utilisateur (`prototype/oedicneme-prototype-interactif-v11-mobile-header-mascot.html`
-— mascotte 🦉 animée, tous les états UX, ~14 Mo dont la majorité en images base64 embarquées).
-Design/CSS/animations repris **à l'identique, aucune modification**. Seul changement
-fonctionnel : les fausses données en dur (`const DOCS`, 6 comptes rendus fictifs, et
-`SOURCE_META`) ont été retirées et `searchDocs()` appelle maintenant le vrai `/api/search`
-(fetch POST). `showResults()` utilise les vrais champs de l'API (`titre`, `date_conseil` formaté
-en français, lien direct vers `url_pdf`) et le surlignage `<<...>>` déjà fourni par
-`ts_headline` côté Postgres (plus besoin du matcher de mots-clés local). `runSearch()` gère
-maintenant un vrai état d'erreur réseau (section F, point 6) au lieu de toujours réussir.
-JS revérifié syntaxiquement (`node --check`). Ensuite, images de la mascotte (base64 inline,
-~9,3 Mo) extraites vers `webapp-oedicneme/assets/*.{png,webp}` (fichiers statiques, servis
-tels quels par Vercel) — `ASSET` et `IDLE_FRAMES` référencent maintenant des chemins `/assets/…`
-au lieu de data URIs. `index.html` passe de ~14 Mo à ~1,6 Mo. Justification : webapp rouverte
-à chaque nouveau message WhatsApp — en fichiers séparés, le navigateur les met en cache
-(visites suivantes quasi instantanées) ; en base64 inline, tout le HTML était retéléchargé à
-chaque visite. Design/comportement inchangés, seul l'emplacement des octets change.
-Reste dead code intentionnellement conservé
-(non branché mais inoffensif) : `parseQuery`/`tokens`/`SYNONYMS`/`STOP_WORDS`/`highlight` —
-ancien moteur de recherche local du prototype, plus utilisé mais pas supprimé pour limiter le
-diff. Ce dossier n'est pas un repo git — pas d'historique pour revenir en arrière sur l'ancien
-`index.html` remplacé.
-
-**Déploiement réel (28/08/2026)** : repo poussé sur GitHub
-(`github.com/fredhindi-ctrl/houville-diffusion`, main), `vercel-app` et `webapp-oedicneme`
-déployés en production sur Vercel (compte `fred-ac2b`, les deux connectés au repo GitHub pour
-auto-déploiement sur futur push) :
-- Webapp Œdicnème : **https://webapp-oedicneme.vercel.app** — testée en vrai (`POST /api/search`
-  avec "voirie" → 5 résultats corrects, identiques aux tests directs sur Supabase).
-- Scraper/cron : **https://vercel-app-coral-chi.vercel.app** — cron protégé par `CRON_SECRET`
-  (généré à cette occasion, il était vide dans `.env`). Testé en vrai avec le secret : run
-  complet sur le vrai site, 20 comptes rendus + 5 actualités scannés, 0 erreur.
-- **Bug réel trouvé et corrigé au déploiement** (pas juste un souci de build) : la fonction cron
-  plantait à chaque appel (`ERR_MODULE_NOT_FOUND`), avant même la vérification du secret. Cause :
-  avec `"type": "module"`, le runtime Node de Vercel exige l'extension `.js` sur les imports
-  relatifs même depuis du code source `.ts` (`tsconfig` avait `moduleResolution: "Bundler"`, qui
-  laisse passer l'absence d'extension au typecheck mais pas à l'exécution réelle). Corrigé sur
-  tous les imports relatifs de `vercel-app`. Effet de bord découvert au passage : `shared/types.ts`
-  (à la racine du repo) n'existe pas dans l'environnement Vercel de `vercel-app` (Root Directory
-  = `vercel-app/`, donc le reste du repo n'est jamais téléversé) — dupliqué dans
-  `vercel-app/shared/types.ts`.
-- `CRON_SECRET`, `WEBAPP_URL` (pointe maintenant vers la webapp déployée ci-dessus) et toutes
-  les autres variables sont configurées sur les deux projets Vercel (production + preview).
-- `whatsapp-worker` n'est pas déployé (toujours des stubs, chantier séparé, voir section H) —
-  `WEBAPP_URL` est donc pour l'instant seulement utilisable manuellement, pas encore diffusée
-  automatiquement par WhatsApp.
-- **2ᵉ bug réel trouvé après coup (404 en prod)** : le `rootDirectory` des deux projets Vercel
-  n'était jamais enregistré côté projet (`null`) — les déploiements CLI initiaux marchaient
-  seulement parce qu'ils étaient lancés depuis le bon sous-dossier local. Le push du fix
-  précédent a déclenché l'intégration Git (auto-déploiement sur push, jamais désactivé), qui
-  clone tout le repo à la racine et n'y a rien trouvé → build vide → 404 constaté par
-  l'utilisateur sur `webapp-oedicneme.vercel.app`. Corrigé en réglant `rootDirectory`
-  explicitement sur les deux projets (`vercel-app`, `webapp-oedicneme`) via l'API Vercel, puis
-  redéploiement forcé depuis Git. Revérifié en vrai : page 200, asset mascotte servi, recherche
-  fonctionnelle, cron protégé. Un 3ᵉ projet parasite (`houville-diffusion`, créé automatiquement
-  à la première connexion GitHub, `rootDirectory` également `null`) a été supprimé sur demande.
-
-**Retouches webapp Œdicnème post-déploiement (28/08/2026)** :
-- Badge «Prototype» et «— Prototype interactif» dans le `<title>` retirés (plus un prototype,
-  c'est en prod) — badge «Recherche documentaire — sans IA générative» conservé.
-- Titre des cartes résultat (`.result h3`) utilisait Georgia (serif) alors que la ligne
-  méta au-dessus est en Inter (sans-serif) — incohérent visuellement, signalé par
-  l'utilisateur. Retiré l'override, hérite maintenant de la même police.
-- Résultats de recherche triés par pertinence (`rang` de `recherche_fts`) — pas intuitif pour
-  des archives municipales. Changé en tri par date décroissante côté `api/search.ts` (les
-  candidats restent choisis par pertinence, seul l'ordre d'affichage change).
-- **Bug réel trouvé par l'utilisateur (login Vercel imposé sur mobile)** : `ssoProtection`
-  était activée sur le projet `webapp-oedicneme` (`deploymentType: all_except_custom_domains`)
-  — mettait un site censé être public derrière un mur de connexion Vercel, puisqu'aucun
-  domaine personnalisé n'est configuré. Désactivée via l'API (`ssoProtection: null`), reconfirmé 200
-  sans redirection depuis un client anonyme.
-- **Débordement horizontal + composer caché/scroll de page sur mobile — ✅ résolu (29/08/2026),
-  confirmé par l'utilisateur sur son iPhone.** Plusieurs manches ont été nécessaires :
-  1. Filets de sécurité initiaux (`overflow-x:hidden`, `min-width:0` sur `.form`,
-     `height:100%` sur `main`/`.chatPane` en plus de `min-height:0`) — pas concluant
-     (« pas terrible » selon l'utilisateur), posé à l'aveugle sans outil de rendu.
-  2. **Percée méthodologique** : découverte que **Chrome/Edge sont installés localement** et
-     peuvent faire un rendu headless avec capture d'écran
-     (`chrome.exe --headless --window-size=390,844 --virtual-time-budget=6000 --screenshot=...`)
-     — permet de voir un vrai rendu au lieu de deviner sur le CSS. À réutiliser pour tout futur
-     débogage visuel de ce projet (ou d'autres artefacts web), même si ça ne reproduit pas les
-     bugs spécifiques à Safari (voir point 4).
-  3. Composer passé en `position:fixed` (ancré au bas du viewport, comme WhatsApp Web/Messenger)
-     au lieu de compter sur la chaîne de hauteurs de grille imbriquée — plus robuste par
-     conception. `#chat` a reçu un `padding-bottom` équivalent pour ne pas cacher les derniers
-     messages derrière.
-  4. Ajout d'`overflow:hidden` (pas juste `overflow-x`) sur `html,body` et `.app` pour empêcher
-     tout scroll de page — seul `#chat` doit scroller en interne.
-  5. **Cause racine réelle, trouvée en lisant le CSS ligne à ligne après le rendu Chrome
-     n'ayant rien révélé** : `.app` avait `min-height:100vh` **et**
-     `height:var(--mobile-vh, 100dvh)` en même temps sur mobile — `min-height` gagne toujours
-     un conflit avec `height`. Or `100vh` est le bug classique de Safari iOS : il mesure la
-     hauteur maximale (barre d'adresse rétractée), plus grande que l'écran réellement visible.
-     `.app` était donc rendu plus haut que l'écran, et avec le blocage de scroll de l'étape 4,
-     le haut de page (header) devenait inatteignable. Retrait de ce `min-height:100vh` en trop
-     — un seul point de vérité (`height:var(--mobile-vh, 100dvh)`, déjà correct) suffit.
-  Leçon pour la suite : sur ce genre de bug (hauteur/viewport mobile), vérifier en premier
-  toute règle `min-height`/`min-width` qui pourrait entrer en conflit avec la règle
-  `height`/`width` voulue, et utiliser le rendu headless local dès le départ plutôt qu'en
-  dernier recours.
-
-**Pour reprendre la prochaine fois :**
-1. ✅ SQL de `recherche_fts` (section G) rejoué sur Supabase et revérifié en direct (28/08/2026).
-2. ✅ `webapp-oedicneme/index.html` = prototype utilisateur, branché sur `/api/search` réel
-   (28/08/2026, voir ci-dessus).
-3. ✅ Déploiement réel Vercel des deux projets, avec un vrai bug de runtime trouvé et corrigé
-   (voir "Déploiement réel" ci-dessus) — c'était plus qu'un simple `vercel deploy` sans accroc.
-4. ⏳ Reste à faire : test visuel dans un vrai navigateur de l'UI chat elle-même (accents, tri
-   "voirie", liens PDF, état d'erreur) — pas fait faute d'outil navigateur dans la session, mais
-   le backend est maintenant vérifié en production réelle, pas juste en local.
-5. Continuer le reste de la checklist F (états UX) visuellement si pas déjà fait.
-6. Puis seulement, passer à `whatsapp-worker`/Koyeb (chantier séparé, voir section H) — c'est le
-   seul morceau de l'architecture qui reste non implémenté.
-
-## Objectif du projet
+## 1. Objectif
 
 Récupérer automatiquement les actualités et comptes rendus publiés sur le site de
-Houville-la-Branche, pour :
+Houville-la-Branche afin de :
 
-1. diffuser automatiquement les nouvelles publications dans un groupe WhatsApp existant ;
-2. permettre la recherche dans les anciens comptes rendus du conseil municipal ;
-3. offrir une expérience de recherche agréable et extrêmement simple sur smartphone ;
-4. fonctionner sans abonnement, coût cible **0 €/mois**.
+1. diffuser les nouvelles publications dans un groupe WhatsApp existant ;
+2. indexer les anciens comptes rendus du conseil municipal ;
+3. permettre leur recherche dans une WebApp mobile simple, **Œdicnème** ;
+4. fonctionner avec une infrastructure légère et un coût mensuel minimal.
 
-Projet personnel pour quelques amis, pas un service officiel de la mairie.
+Le dépôt actuel est un **POC mono-commune**. Ce n'est pas encore une plateforme commerciale
+multi-communes et ce n'est pas un service officiel de la mairie.
 
-## Décisions fondamentales
+## 2. État réel
 
-- **Telegram : ABANDONNÉ.** Plus aucune dépendance active — ni bibliothèque, ni bot, ni
-  webhook, ni lien `t.me/...`, ni variable d'environnement. La recherche est maintenant une
-  WebApp publique.
-- **Recherche : WebApp conversationnelle "🦉 Œdicnème"** — accessible depuis n'importe quel
-  navigateur, lien envoyé dans chaque message WhatsApp de diffusion.
-- **Interface : apparence chatbot** — bulles de conversation, avatar 🦉, suggestions
-  cliquables, champ de saisie fixé en bas. Ressemble à WhatsApp/Messenger dans sa forme.
-- **Moteur : PostgreSQL déterministe.** Full-Text Search français + `unaccent` + repli
-  `pg_trgm` pour tolérer les fautes d'OCR. Classement par `ts_rank`, extraits par
-  `ts_headline` — aucune étape ne fait appel à un modèle de langage.
-- **IA : AUCUNE. LLM : AUCUN. Embeddings : AUCUN. Vector DB : AUCUNE. RAG : AUCUN.** Pas
-  d'appel à OpenAI, Claude API, Anthropic API, Gemini, Mistral, Ollama, Llama ou tout autre
-  modèle local ou distant. Aucune génération de texte probabiliste, aucun résumé génératif,
-  aucune reformulation par LLM, aucune analyse sémantique par modèle génératif. Zéro coût de
-  token. **Cette contrainte prime sur toute autre considération de qualité d'expérience** :
-  Œdicnème préfère répondre "je n'ai rien trouvé, essayez des mots-clés plus simples" plutôt
-  que de simuler une compréhension qu'il n'a pas.
-- **Historique utilisateur côté serveur : AUCUN.** Aucune requête, aucun mot-clé, aucune
-  identité de demandeur n'est stockée en base ni journalisée (pas de `console.log(query)`,
-  pas de table `conversations` ou `messages_utilisateurs`). L'historique de conversation est
-  purement visuel, conservé dans l'état local du navigateur (disparaît à la fermeture/au
-  rechargement — c'est acceptable).
-- **Principe fondamental de qualité** : Œdicnème dit toujours *"j'ai trouvé ceci dans les
-  archives"*, jamais *"voici ce qui s'est passé"* si cette phrase suppose une interprétation.
-  Chercher, retrouver, montrer la source — jamais comprendre, interpréter, générer. Chaque
-  résultat affiche systématiquement sa source (date, titre, extrait brut, lien PDF) pour que
-  l'utilisateur vérifie lui-même.
-- **Budget : 0 €/mois.** Vercel Free, Supabase Free, Koyeb Free, UptimeRobot Free, OCR.space
-  Free, numéro WhatsApp personnel existant. Pas de VPS payant, pas d'API IA, pas d'API
-  WhatsApp Business payante, pas d'abonnement, pas de numéro supplémentaire. Un projet
-  gratuit peut demander occasionnellement une intervention manuelle — c'est accepté.
-- **Ne pas sur-architecturer.** Projet petit : 200 lignes simples valent mieux que 2000 lignes
-  avec abstraction inutile. Pas de microservices, CQRS, event sourcing, brokers, Redis, vector
-  DB, système d'agents ou orchestration complexe. Priorités, dans l'ordre : simplicité,
-  fiabilité, coût 0 €, maintenance minimale, expérience utilisateur agréable.
+### Fonctionnel et validé
 
-## Architecture globale
+- scraping du vrai site de Houville-la-Branche ;
+- cron Vercel quotidien ;
+- récupération des actualités et comptes rendus ;
+- OCR des PDF scannés avec OCR.space ;
+- stockage Supabase/PostgreSQL ;
+- recherche Full-Text Search française avec `unaccent` ;
+- repli `pg_trgm` pour les erreurs d'OCR ;
+- WebApp Œdicnème publique déployée sur Vercel ;
+- interface mobile corrigée et validée sur iPhone ;
+- worker WhatsApp écrit en Go avec whatsmeow ;
+- session WhatsApp persistée dans PostgreSQL/Supabase ;
+- worker déployé sur AlwaysData ;
+- envoi réel d'un message dans le groupe WhatsApp cible validé ;
+- message marqué `envoye` en base après diffusion ;
+- endpoint `/health` opérationnel ;
+- **UptimeRobot actif** sur `/health`.
 
-```
-SITE DE LA MAIRIE
-        │
-        ▼
-Vercel Cron (vercel-app)
-Scraper quotidien
-        │
-        ├── actualités
-        │
-        └── comptes rendus PDF
-                 │
-                 ▼
-              OCR.space
-                 │
-                 ▼
-              Supabase (Postgres)
-          ┌──────┴───────┐
-          │              │
-          ▼              ▼
-messages_a_envoyer   comptes_rendus_texte
-          │           (recherche FTS + pg_trgm)
-          ▼              │
-Koyeb Free                │
-whatsapp-worker            │
-Node + Baileys             ▼
-          │           webapp-oedicneme (Vercel)
-          ▼           Chat UI + /api/search
-      groupe WhatsApp        │
-                              ▼
-                         navigateur (smartphone)
+### Pas encore produit commercial
+
+- pas de multi-tenant ;
+- pas de facturation ;
+- pas de portail administrateur mairie complet ;
+- pas d'isolation RLS par commune ;
+- pas de mécanisme générique pour des sites municipaux différents ;
+- pas d'API WhatsApp officielle.
+
+Ces éléments ne doivent pas être construits avant validation commerciale du concept.
+
+## 3. Architecture actuelle
+
+```text
+SITE DE HOUVILLE-LA-BRANCHE
+            |
+            v
+    Vercel Cron (1x/jour)
+        `vercel-app`
+            |
+      +-----+------+
+      |            |
+ actualités    comptes rendus PDF
+                   |
+                   v
+               OCR.space
+                   |
+                   v
+               Supabase
+        +----------+-----------+
+        |                      |
+        v                      v
+comptes_rendus_texte     messages_a_envoyer
+ FTS + pg_trgm                 |
+        |                      v
+        v              whatsapp-worker
+webapp-oedicneme        Go + whatsmeow
+    Vercel                 AlwaysData
+        |                      |
+        v                      v
+ navigateur             groupe WhatsApp
+
+UptimeRobot ---> GET /health du whatsapp-worker
 ```
 
-Quatre composants, qui ne communiquent qu'via Supabase (jamais d'appel direct entre eux) :
+Supabase est le point de passage central. Les composants applicatifs ne dépendent pas d'appels
+directs les uns vers les autres.
 
-1. **`vercel-app`** (Vercel, cron quotidien) — scrape le site, fait l'OCR des PDF, écrit en
-   base, génère les messages de diffusion WhatsApp.
-2. **`whatsapp-worker`** (Koyeb, process permanent) — connecté en continu au groupe WhatsApp
-   via Baileys, poste les nouveautés (poll de `messages_a_envoyer`), expose `/health`.
-3. **`webapp-oedicneme`** (Vercel, serverless) — la WebApp de recherche : interface chatbot +
-   `/api/search`, lecture seule sur Supabase (clé anon, RLS).
-4. **Supabase** (Postgres gratuit) — base centrale + moteur de recherche déterministe.
+## 4. Composants
 
-## Structure du repo (état réel au moment de cette refonte)
+### `vercel-app`
 
-```
-houville-diffusion/
-├── plan-houville.md         ← ce fichier, source de vérité
-├── README.md
-├── MESSAGES.md               gabarits des messages WhatsApp
-├── .env / .env.example
-├── shared/types.ts           types partagés (pas de node_modules propre — imports directs
-│                             uniquement, pas de dépendance externe importable depuis ce dossier)
-├── supabase/schema.sql       schéma Postgres complet, idempotent
-├── vercel-app/                scraper + cron (Vercel)
-│   ├── api/cron/scrape.ts
-│   ├── lib/scraper/{actualites,comptes-rendus,pdf,run,whatsapp-templates}.ts
-│   ├── lib/supabase.ts
-│   └── scripts/backfill.ts    backfill historique, à lancer une seule fois à la main
-├── webapp-oedicneme/          WebApp de recherche (Vercel)
-│   ├── api/search.ts          déjà implémenté : FTS + repli pg_trgm, 0 IA
-│   └── index.html             interface chatbot (nouveau)
-└── whatsapp-worker/            diffuseur WhatsApp (Koyeb, anciennement prévu sur Render)
-    └── src/{index,queue,supabase,whatsapp,auth-state,health}.ts
-```
+Responsabilités :
 
-## A. État du repo au moment de cette refonte
+- cron quotidien ;
+- scraping des actualités ;
+- scraping des comptes rendus ;
+- téléchargement des PDF ;
+- OCR des PDF scannés ;
+- insertion des données dans Supabase ;
+- génération des messages dans `messages_a_envoyer`.
 
-- **Scraping (`vercel-app/lib/scraper/`)** : fonctionnel et déjà éprouvé sur le vrai site
-  (structure HTML confirmée, pagination gérée, cas limite "page hors limites" documenté).
-  `actualites.ts` et `comptes-rendus.ts` scrapent la page 1 (nouveautés) ; `backfill.ts`
-  parcourt tout l'historique une fois à la main.
-- **OCR (`vercel-app/lib/scraper/pdf.ts`)** : fonctionnel. PDF scannés (pas de couche texte,
-  vérifié sur 4 échantillons 2016-2026), découpage par chunks de 3 pages via `pdf-lib` (limite
-  du tier gratuit OCR.space), OCR séquentiel, concaténation.
-- **Génération des messages WhatsApp (`whatsapp-templates.ts`)** : fonctionnelle, avec
-  extraction automatique des décisions actées (`extraireTopics`, testée sur un vrai compte
-  rendu). Contient encore le rappel Telegram — à retirer (voir section C).
-- **Base Supabase (`supabase/schema.sql`)** : déjà très avancée. Tables `actualites`,
-  `comptes_rendus`, `comptes_rendus_texte`, `messages_a_envoyer`. Moteur de recherche
-  **déjà déterministe et sans IA** : FTS français + `unaccent` (config `french_unaccent`),
-  repli `pg_trgm` (`recherche_floue`), RLS (lecture publique, écriture `service_role`
-  uniquement). Cette partie répond déjà exactement aux exigences de la présente refonte.
-- **`webapp-oedicneme/api/search.ts`** : déjà implémenté et déjà conforme à 100% aux règles
-  "aucune IA" — normalisation déterministe légère, appel `recherche_fts` puis repli
-  `recherche_floue`, aucune journalisation de la requête, réponse `POST /api/search`
-  (jamais `GET ?q=`). Il manquait uniquement l'interface visuelle (chat UI) — ajoutée dans
-  cette refonte.
-- **`whatsapp-worker`** (anciennement pensé pour Render, renommé) : **squelette non
-  implémenté** — `index.ts`, `queue.ts`, `whatsapp.ts` sont des stubs qui lèvent
-  `TODO: ...`. C'est le composant le plus en retard. Les sections G/H/I ci-dessous en
-  décrivent le design cible, mais **son implémentation est reportée à une session dédiée**
-  (voir "État d'avancement" en haut de ce document) — pas faite dans cette passe.
-- **Telegram** : aucune dépendance de code (aucune librairie installée, aucun webhook créé) —
-  seulement des mentions dans la documentation (`README.md`, `MESSAGES.md`, ce fichier) et
-  deux constantes (`RAPPEL_TELEGRAM_CR`, `RAPPEL_TELEGRAM_ACTU`) dans
-  `whatsapp-templates.ts`. Suppression simple, aucun risque de régression.
-- **Render** : aucune dépendance de code — mentions uniquement dans la documentation et dans
-  des commentaires du code (`whatsapp-worker/src/*.ts`, `.gitignore`). Le dossier n'a jamais
-  été nommé `render-whatsapp` dans les faits (déjà `whatsapp-worker/`) — seul le `README.md`
-  employait encore cet ancien nom.
+Le cron est protégé par `CRON_SECRET` et défini dans `vercel-app/vercel.json`.
 
-## B. Éléments à conserver tels quels
+### `webapp-oedicneme`
 
-- Tout `vercel-app/lib/scraper/` (scraping + OCR) — fonctionnel, testé, pas de raison de
-  réécrire.
-- `supabase/schema.sql` — moteur de recherche déjà conforme à la présente refonte
-  (déterministe, sans IA). Seul ajout : la table `baileys_auth_state` (section G).
-- `webapp-oedicneme/api/search.ts` — déjà conforme, conservé sans modification de logique.
-- `shared/types.ts`, tous les `package.json`/`tsconfig.json` existants.
-- `vercel-app/scripts/backfill.ts`.
+WebApp publique, mobile-first, à apparence conversationnelle.
 
-## C. Éléments supprimés dans cette refonte
+Elle ne fait **aucun appel à un LLM**. La requête est envoyée en `POST` à `/api/search`, puis :
 
-- `RAPPEL_TELEGRAM_CR`, `RAPPEL_TELEGRAM_ACTU` dans `whatsapp-templates.ts` → remplacés par
-  un rappel pointant vers `WEBAPP_URL` (déjà présent dans `.env.example`, jamais utilisé
-  jusqu'ici).
-- Toutes les mentions Telegram/BotFather/`@oedicneme_bot`/`t.me/...` dans `README.md` et
-  `MESSAGES.md`.
-- La mention de l'ancien nom de dossier `render-whatsapp/` dans `README.md` et `.gitignore`
-  (remplacée par `whatsapp-worker/`, et la ligne d'auth locale devient obsolète — la session
-  Baileys est désormais persistée dans Supabase, pas sur le disque du worker).
-- Aucun code applicatif Telegram n'existait — rien à désinstaller côté `npm`.
+1. normalisation déterministe légère ;
+2. RPC `recherche_fts` ;
+3. si aucun résultat, RPC `recherche_floue` ;
+4. affichage des résultats avec titre, date, extrait et lien vers le PDF source.
 
-## D. Nouvelle architecture (voir diagramme global ci-dessus)
+Aucune requête utilisateur n'est volontairement stockée en base ou journalisée par
+l'application.
 
-Changement principal par rapport au plan précédent : la recherche n'est plus un canal
-conversationnel WhatsApp/Telegram, mais une **WebApp** dédiée. Cela simplifie en réalité le
-projet — un composant de moins à garder connecté 24/7 avec une identité de bot séparée, un
-composant de plus mais entièrement serverless (`webapp-oedicneme`, aucun process permanent).
-L'hébergement du diffuseur WhatsApp passe de Render à **Koyeb** (voir section H pour le détail
-et la question de la persistance de session).
+### `whatsapp-worker`
 
-## E. Architecture de recherche (déterministe, sans IA)
+Process permanent écrit en **Go**, hébergé sur **AlwaysData**.
 
-```
-Message utilisateur (WebApp Œdicnème)
-        │
-        ▼
-Normalisation locale (JS, api/search.ts)
-  minuscules, retrait ponctuation, espaces normalisés
-        │
-        ▼
-Recherche PostgreSQL (RPC recherche_fts)
-  Full-Text Search français (config "french_unaccent")
-  + unaccent + word_stem
-        │
-        ├─ résultats trouvés ────────────────┐
-        │                                     │
-        └─ 0 résultat                         │
-              │                                │
-              ▼                                │
-        Repli pg_trgm (RPC recherche_floue)     │
-        sur le dernier mot significatif          │
-        (tolère les fautes de reconnaissance OCR) │
-              │                                    │
-              ▼                                    ▼
-        Classement déterministe (ts_rank / word_similarity, calculé en SQL)
-                        │
-                        ▼
-        Extraction des passages (ts_headline, natif Postgres — pas de recomposition JS)
-                        │
-                        ▼
-        Gabarit de réponse prédéfini (JS, front-end)
-          count === 0  → "Je n'ai trouvé aucun compte rendu correspondant à cette recherche."
-          count === 1  → "J'ai trouvé un compte rendu correspondant à votre recherche."
-          count  > 1   → "J'ai trouvé {count} comptes rendus correspondant à votre recherche."
-                        │
-                        ▼
-        Affichage sous forme de conversation (bulles, cartes de résultats, sources visibles)
+Librairie : **whatsmeow**.
+
+Responsabilités :
+
+- connexion au compte WhatsApp déjà appairé ;
+- lecture périodique des lignes `messages_a_envoyer` en statut `en_attente` ;
+- envoi vers `WHATSAPP_GROUP_JID` ;
+- passage du message à `envoye` après réussite ;
+- exposition de `GET /health`.
+
+La session whatsmeow n'est pas stockée sur le disque du worker. `sqlstore` la persiste
+directement dans PostgreSQL/Supabase via les tables `whatsmeow_*` créées par la librairie.
+
+### Supabase
+
+Contient les données métier et le moteur de recherche :
+
+- `actualites` ;
+- `comptes_rendus` ;
+- `comptes_rendus_texte` ;
+- `messages_a_envoyer` ;
+- tables `whatsmeow_*` gérées par whatsmeow/sqlstore.
+
+La table `baileys_auth_state` appartient à une ancienne architecture. Elle peut encore exister
+dans la base historique mais **n'est plus utilisée** par le code actuel et ne doit pas être
+créée sur une nouvelle installation.
+
+## 5. Recherche Œdicnème
+
+### Principe
+
+Œdicnème est un moteur de recherche documentaire, pas un assistant qui prétend comprendre les
+décisions municipales.
+
+Principe de réponse :
+
+> Chercher, retrouver, montrer la source — jamais inventer ni interpréter.
+
+### Chaîne de recherche
+
+```text
+requête utilisateur
+      |
+      v
+normalisation JS
+      |
+      v
+recherche_fts
+PostgreSQL / french_unaccent
+      |
+   résultat ? ---- oui ---> ts_rank + ts_headline
+      |
+     non
+      v
+recherche_floue / pg_trgm
+      |
+      v
+affichage de la source
 ```
 
-Aucune étape de cette chaîne n'appelle un modèle de langage. `api/search.ts` (déjà écrit,
-conservé sans changement) implémente exactement ce chemin. Les phrases affichées par Œdicnème
-proviennent de gabarits fixes côté front-end (`index.html`), jamais générées dynamiquement par
-un modèle.
+Aucun LLM, embedding, vector DB ou RAG n'est utilisé.
 
-**Limites assumées** : sans IA, Œdicnème ne comprend pas le sens d'une phrase complexe. Une
-requête comme *"ils ont parlé du terrain de foot ?"* n'est pas traduite intelligemment en
-`terrain foot` — seule la normalisation déterministe (minuscules, ponctuation, espaces) est
-appliquée. Si la recherche échoue, le message d'erreur invite explicitement à reformuler avec
-des mots-clés simples plutôt que de prétendre à une compréhension qu'il n'a pas.
+## 6. Vie privée
 
-## F. UX Œdicnème — états de l'interface
+Pour le portail public :
 
-1. **Accueil** — avatar 🦉, titre "Œdicnème", sous-titre "Recherche dans les archives de
-   Houville-la-Branche", message de bienvenue, 4 boutons de suggestion (Voirie, Budget,
-   École, Urbanisme) qui lancent directement une recherche (pas des prompts IA), champ de
-   saisie fixé en bas, mention discrète de l'absence d'IA.
-2. **Saisie** — l'utilisateur tape dans le champ fixé en bas, bouton envoyer (➤), la bulle
-   apparaît immédiatement côté "Vous" dès l'envoi.
-3. **Chargement** — indicateur discret (points animés, façon "en train d'écrire") pendant
-   l'appel à `/api/search` — animation très sobre, pas d'effet superflu.
-4. **Résultats** — bulle Œdicnème avec la phrase de gabarit ("J'ai trouvé N comptes rendus…"),
-   suivie d'une carte par résultat : 📄 date + titre, extrait brut (`ts_headline`, jamais
-   reformulé), bouton "Voir le compte rendu" (lien direct vers le PDF source).
-5. **Zéro résultat** — "🦉 Je n'ai rien trouvé. Essayez avec quelques mots-clés plus simples,
-   par exemple : terrain foot" — jamais de silence ni d'erreur technique affichée.
-6. **Erreur** (panne réseau, Supabase indisponible) — message neutre et honnête ("Une erreur
-   est survenue, réessayez dans un instant"), jamais un message qui laisse croire à une
-   recherche vide alors que le système a échoué.
+- aucun compte citoyen ;
+- aucune table de conversations ;
+- aucune table de requêtes utilisateur ;
+- pas de `console.log(query)` ;
+- historique visuel conservé uniquement dans l'état local de la page ;
+- clé Supabase `anon` uniquement côté web public ;
+- `service_role` réservé aux composants serveur privés.
 
-Design : moderne, simple, chaleureux, léger, pas institutionnel, mobile-first, coins
-légèrement arrondis, beaucoup d'espace, animations très discrètes, chargement rapide même sur
-téléphone moyen. Ludique grâce au 🦉, sans être enfantin.
+Les tables `whatsmeow_*` contiennent des secrets de session WhatsApp. Sur le projet Supabase
+actuel, leur accès public a été bloqué en activant RLS sans policy publique. Cette exigence doit
+être reproduite sur toute nouvelle installation.
 
-## G. Schéma SQL — modifications nécessaires
+## 7. Variables d'environnement
 
-Le schéma de recherche existant (`recherche_fts`, `recherche_floue`, RLS, index GIN) est
-conservé sans changement — déjà conforme. Seul ajout, pour la persistance Baileys (section H) :
+| Variable | vercel-app | webapp-oedicneme | whatsapp-worker |
+|---|---:|---:|---:|
+| `SUPABASE_URL` | oui | oui | oui |
+| `SUPABASE_SERVICE_ROLE_KEY` | oui | non | oui |
+| `SUPABASE_ANON_KEY` | non | oui | non |
+| `SUPABASE_DB_PASSWORD` | non | non | oui |
+| `CRON_SECRET` | oui | non | non |
+| `WEBAPP_URL` | oui | non | non |
+| `OCR_SPACE_API_KEY` | oui | non | non |
+| `WHATSAPP_GROUP_JID` | non | non | oui |
+| `PORT` | non | non | optionnel |
 
-```sql
--- Persistance de la session WhatsApp (Baileys) : credentials + Signal keys.
--- Koyeb ne garantit pas un disque persistant entre redéploiements/redémarrages — la session
--- doit survivre ailleurs. Une seule ligne ("default") : ce projet n'a qu'un seul worker.
--- service_role uniquement (jamais RLS publique, jamais clé anon) — contient des secrets de
--- session WhatsApp.
-create table if not exists baileys_auth_state (
-  id text primary key default 'default',
-  creds jsonb not null,
-  keys jsonb not null default '{}'::jsonb,
-  updated_at timestamptz not null default now()
-);
+`WHATSAPP_PHONE_NUMBER` n'est plus utilisé par l'architecture actuelle.
 
-alter table baileys_auth_state enable row level security;
--- Aucune policy créée : par défaut, RLS sans policy = accès refusé à tout sauf service_role
--- (qui contourne RLS). C'est le comportement voulu ici.
-```
+## 8. Monitoring
 
-## H. Hébergement whatsapp-worker : AlwaysData + whatsmeow (Go)
+**UptimeRobot est actif.**
 
-**Changement hébergement (28/08/2026)** : Koyeb nécessitait un compte/token que l'utilisateur
-n'avait pas sous la main ; Northflank a été essayé ensuite mais bloque la création du moindre
-service (même gratuit) tant qu'aucune carte bancaire n'est enregistrée sur le compte —
-incompatible avec le "0 €/mois, pas de CB" du projet. **AlwaysData** a un forfait gratuit
-permanent réel (1 Go disque, 256 Mo RAM, 0.25 CPU, "for life"), pas de CB demandée, et son
-type de site `user_program` permet de déclarer une commande arbitraire persistante (déclarée
-via leur API REST `api.alwaysdata.com/v1/site/`, authentification Basic avec un token API en
-nom d'utilisateur). Point de vigilance découvert dans leur doc API : chaque site a un champ
-`max_idle_time` (1800s par défaut) après lequel le process est arrêté — géré par le ping
-UptimeRobot sur `/health` (section I), qui sert donc doublement de surveillance et de
-garde-fou anti-inactivité, exactement comme prévu pour Koyeb à l'origine.
+Il interroge `GET /health` du worker AlwaysData.
 
-**Changement librairie (28/08/2026)** : Baileys (TypeScript) abandonné — pairing code et QR
-tous deux cassés par un bug amont non résolu (détail section K, point 10). Remplacé par
-**whatsmeow**, une implémentation indépendante du même protocole WhatsApp multi-appareils, en
-**Go** — non affectée par ce bug, confirmé empiriquement (QR scanné avec succès sur un vrai
-téléphone, aucun crash). Seul `whatsapp-worker` change de langage ; le reste du projet
-(scraper, webapp) reste en TypeScript. Déploiement plus simple qu'avant : un binaire Go
-compilé (`go build`) tourne directement sur AlwaysData, pas besoin d'installer Go sur le
-serveur (contrairement à Node qui, lui, y est déjà installé).
+Le worker renvoie HTTP 503 si l'un des éléments suivants est en défaut :
 
-`whatsapp-worker` tourne comme process Go permanent sur **AlwaysData** (site `user_program`,
-`fredhindi.alwaysdata.net/whatsapp-worker/`). Composition :
+- WhatsApp déconnecté ;
+- Supabase inaccessible ;
+- boucle de polling considérée comme bloquée.
 
-- Connexion whatsmeow au numéro WhatsApp personnel existant, via QR code (le pairing code
-  Baileys posait problème ; pas encore retesté côté whatsmeow — voir section K).
-- **Persistance de session via une connexion Postgres directe à Supabase** (`sqlstore` de
-  whatsmeow — pas l'API REST comme le reste du projet, nécessite `SUPABASE_DB_PASSWORD`, le
-  mot de passe direct de la base). whatsmeow gère lui-même son schéma (17 tables `whatsmeow_*`,
-  migrations automatiques) — pas de store custom à écrire, contrairement à la version Baileys.
-  **RLS activée sans policy sur ces 17 tables** (indispensable : Supabase expose par défaut
-  toute table `public` via son API REST avec la seule clé `anon` si RLS n'est pas activée —
-  vérifié et corrigé en urgence pendant cette session, voir section K point 10). Avantage
-  pratique : la session vit dans cette base, donc appairer depuis n'importe quelle machine
-  (ex. en local pour le tout premier appairage) suffit à ce que le worker déployé la retrouve
-  ensuite, sans transfert manuel de fichiers de session.
-- Boucle de polling `messages_a_envoyer` (statut `en_attente`) toutes les 5 minutes, envoi
-  dans le groupe, marquage `envoye`.
-- **Aucune recherche depuis WhatsApp, aucun chatbot WhatsApp, aucune réponse automatique aux
-  habitants** — WhatsApp reste un canal de diffusion à sens unique.
-- Endpoint `GET /health` pour UptimeRobot (voir section I).
-
-## I. Surveillance : UptimeRobot
-
-UptimeRobot Free interroge `GET /health` sur AlwaysData. Réponse attendue :
+Réponse saine attendue :
 
 ```json
-{ "status": "ok", "whatsapp": "connected", "database": "ok", "worker": "ok" }
+{
+  "status": "ok",
+  "whatsapp": "connected",
+  "database": "ok",
+  "worker": "ok"
+}
 ```
 
-Si la connexion WhatsApp est perdue, l'endpoint répond **HTTP 503** (pas 200 avec un champ
-"whatsapp": "disconnected" caché dans le JSON) pour que UptimeRobot déclenche réellement une
-alerte. Le endpoint vérifie : process Node actif (trivial, il répond), état de connexion
-Baileys réel (pas juste "le process tourne"), accessibilité Supabase (ping léger), et que la
-boucle de polling n'est pas bloquée (timestamp du dernier passage, comparé à un seuil).
+## 9. Déploiements
 
-## J. Variables d'environnement, par composant
+- Œdicnème : `https://webapp-oedicneme.vercel.app`
+- scraper/cron : `https://vercel-app-coral-chi.vercel.app`
+- worker WhatsApp : AlwaysData
+- base : Supabase
+- monitoring : UptimeRobot
 
-| Variable | vercel-app | whatsapp-worker | webapp-oedicneme | Description |
-|---|---|---|---|---|
-| `SUPABASE_URL` | ✅ | ✅ | ✅ | URL du projet Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | ✅ | ✅ | ❌ | Accès total, contourne RLS — jamais côté public |
-| `SUPABASE_ANON_KEY` | ❌ | ❌ | ✅ | Lecture seule via RLS — seule clé légitime en public |
-| `CRON_SECRET` | ✅ | ❌ | ❌ | Protection du endpoint `/api/cron/scrape` |
-| `WEBAPP_URL` | ✅ | ❌ | ❌ | Lien Œdicnème inclus dans chaque message WhatsApp |
-| `OCR_SPACE_API_KEY` | ✅ | ❌ | ❌ | OCR des PDF scannés (tier gratuit, 25 000 req/mois) |
-| `PORT` | ❌ | ✅ (optionnel) | ❌ | Port HTTP du serveur `/health` (AlwaysData l'injecte) |
-| `WHATSAPP_PHONE_NUMBER` | ❌ | ✅ | ❌ | Numéro personnel (E.164) qui demande le pairing code |
-| `WHATSAPP_GROUP_JID` | ❌ | ✅ | ❌ | Identifiant du groupe WhatsApp cible (`...@g.us`) |
+Les deux projets Vercel sont reliés au dépôt GitHub et se redéploient depuis `main`.
 
-La session WhatsApp elle-même (creds + Signal keys) n'a pas de variable dédiée — générée à la
-première connexion (pairing code) et persistée automatiquement dans `baileys_auth_state`. Ajouté
-au fil de l'implémentation (28/08/2026) : `WHATSAPP_PHONE_NUMBER` et `WHATSAPP_GROUP_JID`
-n'étaient pas dans la version précédente de ce tableau — nécessaires en pratique pour demander
-le pairing code et cibler le bon groupe, oubli du plan initial.
+## 10. Risques techniques assumés
 
-## K. Plan de migration (ordre exact)
+### WhatsApp non officiel
 
-**Passe 1 — recherche Œdicnème (cette session)**
+whatsmeow utilise le protocole WhatsApp multi-device, pas l'API officielle Meta. Le POC peut
+fonctionner ainsi, mais cette dépendance reste un **risque majeur pour une commercialisation** :
+changement de protocole, déconnexion, blocage de compte ou incompatibilité future.
 
-1. ✅ Supprimer Telegram, renommer `whatsapp-worker/`.
-2. ✅ Migration SQL recherche (`unaccent`, `pg_trgm`, `french_unaccent`, RLS) — appliquée et
-   testée sur le vrai Supabase.
-3. ✅ Retirer les constantes Telegram de `whatsapp-templates.ts` (à vérifier au prochain
-   démarrage que c'est bien fait — voir "État d'avancement").
-4. ✅ Construire `webapp-oedicneme/index.html` + `api/search.ts`, testés dans un vrai
-   navigateur contre les vraies données.
-5. ✅ Fix `recherche_fts` (bonus correspondance exacte, section G) rejoué et reconfirmé en
-   direct sur les vraies données (28/08/2026). Reste : test visuel dans un vrai navigateur
-   (pas fait cette fois, pas d'outil navigateur disponible dans la session).
-6. Mettre à jour `README.md` et `.env.example` (déjà partiellement fait pour Koyeb au lieu de
-   Render, `whatsapp-worker` au lieu de `render-whatsapp` — à vérifier).
-7. Valider `tsc --noEmit` sur les trois packages.
+Cette architecture convient au démonstrateur. Elle ne doit pas être présentée comme une garantie
+de service institutionnelle avant décision sur une stratégie WhatsApp soutenable.
 
-**Passe 2 — diffuseur WhatsApp (28-29/08/2026) — TERMINÉE**
+### Scraping spécifique au site
 
-8. ✅ `baileys_auth_state` ajoutée à `supabase/schema.sql` — SQL donné à l'utilisateur pour être
-   rejoué sur le vrai Supabase (même flux que pour `recherche_fts`, aucun accès SQL direct
-   disponible). **À confirmer rejoué avant le premier démarrage réel du worker.**
-9. ✅ Code écrit : `whatsapp-worker/src/auth-state.ts` (store Baileys sur Supabase, calqué sur
-   `useMultiFileAuthState`, l'implémentation officielle), `whatsapp.ts` (connexion + pairing
-   code), `queue.ts` (polling/envoi — `WHATSAPP_GROUP_JID` rendu non-bloquant au démarrage,
-   voir ci-dessous), `index.ts` (boucle + serveur `/health`), `scripts/list-groups.ts` (utilitaire
-   pour trouver le JID du groupe une fois connecté). `tsc --noEmit` propre. **Persistance de
-   session pas encore testée en conditions réelles** (déconnexion/reconnexion du worker) —
-   prévu dès que la connexion initiale fonctionne.
-   - Oubli corrigé en cours de route : `queue.ts` faisait planter le worker au démarrage si
-     `WHATSAPP_GROUP_JID` n'était pas encore défini — impossible de connaître ce JID avant
-     d'être connecté. Rendu non-bloquant (vérifié à chaque appel de `pollAndSend`, pas au
-     chargement du module).
-10. ✅ **Fait et vérifié en conditions réelles (29/08/2026)** — `whatsapp-worker` (Go +
-    whatsmeow) est en production sur AlwaysData, appairé, connecté, et a envoyé un vrai message
-    dans le vrai groupe WhatsApp. Pipeline complet scraper → message → WhatsApp opérationnel
-    de bout en bout.
+Le scraper dépend du HTML du site de Houville. Un changement de template peut casser la collecte.
+Pour un futur produit multi-communes, il faudra soit des connecteurs par fournisseur de site,
+soit une autre source d'entrée plus stable.
 
-    **Cause racine du blocage précédent trouvée** : ni un bug ni un cooldown WhatsApp — le
-    téléphone était sur **données mobiles (4G/5G)** lors de toutes les tentatives échouées
-    ("check your connection"). Confirmé en isolant la variable réseau (le compte savait déjà
-    lier des appareils par ailleurs, ex. WhatsApp Web — donc pas une restriction de compte).
-    Sur **WiFi**, appairage réussi du premier coup : "Appairage réussi." puis "WhatsApp
-    connecté." dans les logs, confirmé par `/health` →
-    `{"status":"ok","whatsapp":"connected",...}`. Hypothèse : le device linking WhatsApp
-    emprunte un chemin réseau plus sensible que la messagerie classique, filtré/perturbé par
-    l'opérateur mobile utilisé. **À retenir pour un futur repairing (perte de session) :
-    toujours appairer en WiFi, jamais en données mobiles.**
+### OCR externe
 
-    **`WHATSAPP_GROUP_JID` trouvé** : utilitaire `whatsapp-worker/cmd/listgroups/main.go`
-    (package Go séparé, réutilise la session Postgres déjà appairée, pas de nouveau QR requis)
-    a listé les 54 groupes existants — aucun ne correspondait, l'utilisateur a créé un nouveau
-    groupe "Oenicdeme" dans l'app, relisté ensuite pour récupérer son JID
-    (`120363428873865750@g.us`), configuré sur le site AlwaysData.
+OCR.space est suffisant pour le POC, mais reste un service tiers avec limites de quota et de
+disponibilité.
 
-    **Bug réel trouvé en préparant un message de test réaliste** : `whatsapp-templates.ts`
-    pointait encore vers Telegram (`@oedicneme_bot`, `t.me/...`) dans le rappel de recherche en
-    bas de chaque message, alors que le plan (section C) disait explicitement que ça devait
-    être remplacé par un lien vers la webapp Œdicnème — jamais fait. Corrigé :
-    `rappelRecherche()` utilise maintenant `WEBAPP_URL` (omet la ligne de lien si absent plutôt
-    que d'envoyer une URL cassée).
+## 11. Deux points de robustesse à traiter avant exploitation longue durée
 
-    **2ᵉ bug réel trouvé pendant le test end-to-end** : le tout premier `poll()` après chaque
-    (re)démarrage était presque systématiquement ignoré ("WhatsApp non connecté") —
-    `client.Connect()` de whatsmeow revient dès que la connexion est *amorcée*, pas une fois
-    l'événement `Connected` reçu. Corrigé avec `waitConnected()` (attente bornée 3s max, retour
-    anticipé dès connexion réelle) avant le premier poll.
+Ils ne bloquent pas la démo mais sont connus :
 
-    **Test end-to-end réel** : message généré avec le vrai template (`formatMessageCompteRendu`)
-    sur le vrai compte rendu du 20 août 2026 (voir section "webapp Œdicnème" plus haut), inséré
-    dans `messages_a_envoyer`, repris par le worker, envoyé dans le groupe "Oenicdeme", marqué
-    `statut=envoye` en base — confirmé dans les logs AlwaysData ("Message 2 envoyé et
-    marqué.") et par une relecture directe de la table. **Confirmé reçu par l'utilisateur sur
-    son téléphone dans le groupe WhatsApp** — le pipeline est validé de bout en bout, pas
-    seulement côté serveur.
+1. **écriture partielle du scraper** : un compte rendu peut être inséré avant que son texte OCR
+   ou son message ne soit créé. Si une étape suivante échoue, le `site_id` existant peut empêcher
+   une reprise automatique complète ;
+2. **doublon WhatsApp possible** : si l'envoi WhatsApp réussit mais que le marquage `envoye`
+   échoue, le même message peut être repris au poll suivant.
 
-    **Reste** : UptimeRobot sur `/health` (token à fournir — sert aussi de garde-fou
-    anti-inactivité AlwaysData, voir section H).
+Ces corrections doivent être faites dans un commit séparé du nettoyage documentaire.
 
-    **Historique du blocage Baileys (abandonné, pour mémoire)** : pairing code ET QR cassés
-    par un bug amont non résolu
-    ([WhiskeySockets/Baileys#2364](https://github.com/WhiskeySockets/Baileys/issues/2364)) —
-    la connexion se refermait ~2-5s après avec `Error: Connection Failure`
-    (`noise-handler.ts`, `decodeFrame`), reproduit identiquement sur AlwaysData, en local, sur
-    Baileys 6.7.24 (`legacy`) et 7.0.0-rc14 (`latest`). Sur le moment, ce blocage réseau
-    mobile ressemblait au même genre de problème — en rétrospective ce sont deux causes
-    différentes qui se sont succédé (bug Baileys, puis réseau mobile sur whatsmeow), pas la
-    même confondue deux fois. Bascule vers whatsmeow (Go) le 28/08/2026 (voir section H) :
-    implémentation indépendante du même protocole, non affectée par ce bug précis — confirmé
-    dès le premier test local (QR généré et scanné sans crash).
+## 12. Prochaine étape produit
 
-## Risques à connaître
+Ne pas transformer ce dépôt en SaaS avant validation de la disposition à payer.
 
-- **Baileys n'est pas une API officielle WhatsApp** : usage contraire aux CGU. Risque de ban
-  du numéro personnel en cas d'usage jugé automatisé — faible pour un usage de diffusion à
-  faible volume (1x/jour), mais à garder en tête.
-- **Koyeb Free** : à valider en conditions réelles que le process reste bien actif en continu
-  (comportement face à l'inactivité moins documenté publiquement que sur d'autres
-  plateformes). Plan de repli : petit plan payant si le gratuit s'avère instable pour ce cas
-  d'usage précis (connexion WebSocket permanente).
-- **Site de la mairie non standard** (HTTP simple, sans HTTPS) : structure HTML potentiellement
-  fragile dans le temps — le scraper pourra casser si le site change de template.
-- **Persistance Baileys dans Supabase** : approche correcte mais pas triviale — à tester
-  réellement (déconnexion/reconnexion du worker) avant de considérer la session fiable en
-  production.
+La prochaine étape est de conserver ce POC comme démonstrateur Houville et de tester le concept
+commercial auprès de petites communes. Le multi-tenant, la facturation et le portail admin ne
+sont justifiés qu'après un signal commercial réel.

@@ -5,5 +5,5 @@ dist/
 .vercel/
 *.log
 
-# Session Baileys (credentials WhatsApp — ne jamais committer)
-render-whatsapp/auth_session/
+# Le worker WhatsApp persiste sa session dans PostgreSQL/Supabase via whatsmeow/sqlstore.
+# Aucun répertoire de session local ne doit être versionné.
