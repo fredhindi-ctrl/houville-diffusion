@@ -2,7 +2,7 @@
 
 **Source de vérité actuelle du POC Houville-la-Branche.**
 
-Mise à jour : **16 septembre 2026**.
+Mise à jour : **17 septembre 2026**.
 
 L'ancien historique détaillé des essais Baileys, Koyeb, Render et Telegram reste accessible
 dans l'historique Git. Il ne décrit plus l'architecture courante et n'est donc plus conservé
@@ -40,7 +40,9 @@ multi-communes et ce n'est pas un service officiel de la mairie.
 - envoi réel d'un message dans le groupe WhatsApp cible validé ;
 - message marqué `envoye` en base après diffusion ;
 - endpoint `/health` opérationnel ;
-- **UptimeRobot actif** sur `/health`.
+- **UptimeRobot actif** sur `/health` ;
+- copie email de chaque message WhatsApp envoyé (Resend) ;
+- vérification quotidienne indépendante de l'état du worker, déclenchée par le cron Vercel.
 
 ### Pas encore produit commercial
 
@@ -220,9 +222,18 @@ actuel, leur accès public a été bloqué en activant RLS sans policy publique.
 
 ## 8. Monitoring
 
-**UptimeRobot est actif.**
+Trois couches indépendantes, pas juste une :
 
-Il interroge `GET /health` du worker AlwaysData.
+1. **UptimeRobot** — interroge `GET /health` du worker AlwaysData toutes les 5 min, alerte
+   email en cas de panne.
+2. **Vérification quotidienne côté `vercel-app`** — le cron de scrape appelle aussi `/health`
+   une fois par jour (`lib/scraper/whatsapp-health.ts`) et envoie sa propre alerte email
+   (Resend) si le worker ne répond pas correctement. Indépendante d'UptimeRobot : si l'une des
+   deux couches tombe en panne, l'autre reste un filet de sécurité.
+3. **Copie email de chaque message WhatsApp** (`whatsapp-worker/email.go`, Resend) — envoyée
+   juste après un envoi WhatsApp réussi, non bloquante (un échec d'email n'empêche jamais
+   l'envoi WhatsApp ni le marquage `envoye` en base). Permet de remarquer visuellement une
+   absence de diffusion même sans consulter les outils de monitoring.
 
 Le worker renvoie HTTP 503 si l'un des éléments suivants est en défaut :
 
@@ -240,6 +251,25 @@ Réponse saine attendue :
   "worker": "ok"
 }
 ```
+
+### Incident résolu : coupures WhatsApp début septembre
+
+Deux coupures silencieuses (29/08, 02/09) ont laissé des messages bloqués en `en_attente`
+plusieurs jours sans alerte (avant la mise en place du monitoring ci-dessus). Cause racine
+trouvée dans les logs AlwaysData :
+
+```
+[02/Sep 08:02:38] STDOUT: WhatsApp connecté.
+[02/Sep 08:32:55] Upstream stopped (reason: idle)   ← exactement 30 min plus tard
+```
+
+AlwaysData tue les sites `user_program` après `max_idle_time` secondes sans requête HTTP
+entrante (1800s par défaut) — et rien ne relance le process tout seul ensuite. **Corrigé** :
+`max_idle_time` mis à `0` (désactivé) via l'API AlwaysData
+(`PATCH /v1/site/1071764/` `{max_idle_time: 0}`). La coupure du 29/08 avait une cause
+différente (réseau mobile pendant l'appairage initial). Zéro coupure constatée depuis via
+UptimeRobot, mais aucune garantie à 100 % pour un autre mode de panne — d'où les trois couches
+de monitoring ci-dessus plutôt qu'une seule.
 
 ## 9. Déploiements
 

@@ -35,6 +35,11 @@ func pollAndSend(client *whatsmeow.Client, sb *supabaseClient, groupJID string) 
 			fmt.Printf("Échec d'envoi du message %d : %v\n", m.ID, err)
 			continue
 		}
+		if err := sendEmailCopy(m.Contenu); err != nil {
+			// Non bloquant : le message est déjà parti sur WhatsApp, l'email n'est qu'une
+			// copie de confort.
+			fmt.Printf("Copie email du message %d échouée (non bloquant) : %v\n", m.ID, err)
+		}
 		if err := sb.markSent(m.ID); err != nil {
 			fmt.Printf("Message %d envoyé mais marquage échoué : %v\n", m.ID, err)
 		} else {

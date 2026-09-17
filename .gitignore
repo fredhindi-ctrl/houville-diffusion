@@ -7,3 +7,13 @@ dist/
 
 # Le worker WhatsApp persiste sa session dans PostgreSQL/Supabase via whatsmeow/sqlstore.
 # Aucun répertoire de session local ne doit être versionné.
+
+# Binaires Go compilés (whatsapp-worker et ses utilitaires cmd/*) — jamais committés,
+# reconstruits à chaque déploiement.
+whatsapp-worker/worker
+whatsapp-worker/worker_linux
+whatsapp-worker/cmd/*/*.exe
+whatsapp-worker/cmd/*/sendgif
+whatsapp-worker/cmd/*/sendtext
+whatsapp-worker/cmd/*/sendintro
+whatsapp-worker/cmd/*/listgroups

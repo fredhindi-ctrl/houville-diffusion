@@ -3,6 +3,7 @@ import { scrapeActualites } from "./actualites.js";
 import { scrapeComptesRendus } from "./comptes-rendus.js";
 import { extractPdfText } from "./pdf.js";
 import { formatMessageActualite, formatMessageCompteRendu } from "./whatsapp-templates.js";
+import { checkWhatsappWorkerHealth } from "./whatsapp-health.js";
 
 export interface ResultatScrape {
   comptesRendus: { scannes: number; nouveaux: number };
@@ -89,6 +90,14 @@ export async function runScrapeJob(): Promise<ResultatScrape> {
     }
   } catch (e) {
     resultat.erreurs.push(`scraping actualités : ${(e as Error).message}`);
+  }
+
+  // Vérification quotidienne indépendante d'UptimeRobot (voir whatsapp-health.ts) — jamais
+  // bloquante pour le job de scrape lui-même.
+  try {
+    await checkWhatsappWorkerHealth();
+  } catch (e) {
+    resultat.erreurs.push(`vérification whatsapp-worker : ${(e as Error).message}`);
   }
 
   return resultat;
