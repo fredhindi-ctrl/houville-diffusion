@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Mairie Diffusion — Faire circuler l'information, simplement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --encre:#20262c; --encre-doux:#5b656e; --papier:#f2f2f0;
+    --oeil:#c8871a; --trait:#dcdcd8; --carte:#ffffff;
+    --bg:var(--papier); --texte:var(--encre); --texte-doux:var(--encre-doux);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#141a20; --texte:#eee8dc; --texte-doux:#a9b4be;
+      --carte:#1c242c; --trait:#2f3a44;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#141a20; --texte:#eee8dc; --texte-doux:#a9b4be;
+    --carte:#1c242c; --trait:#2f3a44;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--texte);
+    font-family:Figtree,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:17px; line-height:1.55;
+  }
+  .wrap{max-width:660px;margin:0 auto;padding:0 24px}
+
+  .bandeau{
+    width:100%;
+    margin:0;
+    line-height:0;
+  }
+  .bandeau img{width:100%;height:auto;display:block}
+
+  .hero{position:relative;width:100%;overflow:hidden;aspect-ratio:16/10}
+  .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  .hero-content{
+    position:relative; z-index:1; height:100%; box-sizing:border-box;
+    max-width:300px; padding:26px 24px 0 38px;
+    display:flex; flex-direction:column; justify-content:flex-start;
+  }
+  .hero-content .logo{width:170px;height:auto;display:block;margin:0 0 14px}
+  .hero-content h1{max-width:230px;font-size:clamp(21px,3.2vw,28px)}
+  .hero-content .chapeau{max-width:230px;font-size:15px;color:var(--texte)}
+  @media (max-width:640px){
+    .hero{aspect-ratio:1/1}
+    .hero-img{object-position:0% 20%}
+    .hero-content{justify-content:flex-start;padding-top:24px}
+    .hero-content h1{max-width:210px}
+    .hero-content .chapeau{max-width:210px}
+  }
+
+  header{padding:36px 0 46px;border-bottom:1px solid var(--trait)}
+  .marque{display:flex;align-items:center;gap:11px;margin-bottom:30px}
+  .oiseau{font-size:30px;line-height:1}
+  .nom{
+    font-size:19px; font-weight:700;
+    letter-spacing:-.02em; color:var(--texte);
+  }
+  h1{
+    font-weight:700;
+    font-size:clamp(29px,5.8vw,43px); line-height:1.1;
+    letter-spacing:-.028em; margin:0 0 18px; max-width:17ch;
+  }
+  .accroche2{
+    font-weight:600;
+    font-size:clamp(20px,3.6vw,25px);
+    line-height:1.25; letter-spacing:-.01em;
+    color:var(--texte); max-width:24ch; margin:0 0 22px;
+  }
+  .chapeau{font-size:clamp(17px,2.6vw,19px);color:var(--texte-doux);max-width:48ch;margin:0}
+
+  section{padding:46px 0;border-bottom:1px solid var(--trait)}
+  h2{
+    font-weight:700;
+    font-size:clamp(21px,3.6vw,26px); line-height:1.2;
+    letter-spacing:-.022em; margin:0 0 20px; max-width:22ch;
+  }
+  p{margin:0 0 16px;max-width:56ch}
+  p:last-child{margin-bottom:0}
+
+  .points{list-style:none;margin:0;padding:0}
+  .points li{padding:20px 0;border-bottom:1px solid var(--trait)}
+  .points li:first-child{padding-top:0}
+  .points li:last-child{border-bottom:0;padding-bottom:0}
+  .points h3{font-size:17px;font-weight:700;margin:0 0 5px;letter-spacing:-.015em}
+  .points p{margin:0;color:var(--texte-doux);font-size:16px;max-width:52ch}
+
+  .note-captures{
+    margin:16px 0 0; font-size:14px; color:var(--texte-doux);
+    text-align:center; max-width:none;
+  }
+
+  .section-oedicneme{
+    --oed-bg:#F1EDE3; --oed-bg-clair:#FBF9F4; --oed-bordure:#D8CDB8;
+    --oed-texte:#243446; --oed-accent:#A56E2B;
+    width:100%; background:var(--oed-bg); border-bottom:1px solid var(--oed-bordure);
+    padding:56px 24px;
+  }
+  .oed-inner{
+    max-width:1080px; margin:0 auto;
+    display:grid; grid-template-columns:minmax(280px,410px) 1fr; gap:48px; align-items:center;
+  }
+  .oed-phone-crop{overflow:hidden; aspect-ratio:2/3; max-width:410px}
+  .oed-phone{position:relative; width:100%; aspect-ratio:932/1868}
+  .oed-phone-frame{position:absolute; inset:0; width:100%; height:100%; display:block; z-index:2}
+  .oed-phone-shot{position:absolute; top:0; left:0; width:100%; height:auto; display:block}
+  .oed-label{font-weight:700; font-size:13px; color:var(--oed-accent); margin:0 0 14px}
+  .oed-inner h2{color:var(--oed-texte)}
+  .oed-sep{display:block; width:40px; height:2px; background:var(--oed-accent); opacity:.7; margin:24px 0}
+  .oed-texte .fort{color:var(--oed-texte)}
+  .oed-mention{font-size:13px; color:var(--texte-doux); margin:18px 0 0}
+  @media (max-width:760px){
+    .oed-inner{grid-template-columns:1fr; gap:28px}
+    .oed-phone-crop{max-width:none}
+  }
+
+  .capture{
+    margin:30px 0 0;
+    text-align:center;
+  }
+  .capture img{
+    width:100%; max-width:330px; height:auto;
+    border:1px solid var(--trait);
+    border-radius:12px;
+    display:inline-block;
+  }
+  .capture figcaption{
+    margin-top:12px; font-size:14px; color:var(--texte-doux);
+  }
+
+  .fort{
+    font-weight:600;
+    font-size:clamp(19px,3.4vw,23px);
+    line-height:1.4; max-width:26ch; margin:0 0 20px;
+  }
+
+  .negatif{margin:0;padding:0}
+  .negatif li{
+    padding:13px 0 13px 26px; position:relative;
+    color:var(--texte-doux); font-size:16px;
+    border-bottom:1px solid var(--trait); list-style:none;
+  }
+  .negatif li:first-child{padding-top:0}
+  .negatif li:last-child{border-bottom:0;padding-bottom:0}
+  .negatif li::before{
+    content:"—"; position:absolute; left:0;
+    color:var(--oeil); font-weight:600;
+  }
+
+  .capture{
+    margin:26px 0 0;
+    padding:0;
+  }
+  .capture img{
+    width:100%;
+    max-width:330px;
+    height:auto;
+    display:block;
+    border:1px solid var(--trait);
+    border-radius:12px;
+  }
+  .capture figcaption{
+    margin-top:10px;
+    font-size:14px;
+    color:var(--texte-doux);
+  }
+
+  .demo{
+    background:var(--carte); border:1px solid var(--trait);
+    border-radius:14px; padding:28px;
+  }
+  .demo h2{margin-bottom:12px}
+  .demo p{color:var(--texte-doux);font-size:16px}
+  .demo .module-name{font-size:14px;margin:0 0 10px}
+  .lien{
+    display:inline-block; margin-top:10px; background:var(--encre);
+    color:#f2f2f0; text-decoration:none; font-weight:600; font-size:16px;
+    padding:13px 26px; border-radius:9px; transition:opacity .15s ease;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .lien{background:var(--oeil);color:#24190a}
+  }
+  :root[data-theme="dark"] .lien{background:var(--oeil);color:#24190a}
+  .lien:hover{opacity:.87}
+  .lien:focus-visible{outline:3px solid var(--oeil);outline-offset:3px}
+
+  footer{padding:40px 0 68px;color:var(--texte-doux);font-size:15px}
+  footer p{max-width:54ch}
+  .signature{margin-top:20px;padding-top:20px;border-top:1px solid var(--trait)}
+
+  @media (max-width:520px){
+    body{font-size:16px} header{padding:30px 0 36px}
+    section{padding:38px 0} .demo{padding:22px}
+  }
+  @media (prefers-reduced-motion: reduce){*{transition:none !important}}
+
+  .section-whatsapp{
+    --ws-bg:#eae9e5; --ws-vert:#036a32; --ws-bleu:#0b2f52; --ws-vert-clair:#baf1b8;
+    width:100%; background:var(--ws-bg); padding:56px 24px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .section-whatsapp{--ws-bg:#1a222a; --ws-vert:#4caf6e; --ws-bleu:#8fb4da; --ws-vert-clair:#a7e6ac}
+  }
+  :root[data-theme="dark"] .section-whatsapp{--ws-bg:#1a222a; --ws-vert:#4caf6e; --ws-bleu:#8fb4da; --ws-vert-clair:#a7e6ac}
+  .ws-inner{max-width:1080px; margin:0 auto}
+  .ws-texte{margin:0 0 40px}
+  .ws-accent{color:var(--ws-vert); font-weight:700; font-size:17px; margin:0 0 16px}
+  .ws-note{font-size:14px; color:var(--texte-doux); margin:0}
+
+  .ws-preuve{
+    display:grid; grid-template-columns:9fr 3fr 7fr; gap:20px; align-items:start;
+  }
+  .ws-preuve-etape{min-width:0}
+  .ws-preuve-label{font-weight:700; font-size:clamp(20px,1.6vw,28px); line-height:1.15; margin:0 0 16px}
+  .ws-preuve-img{
+    width:100%; height:auto; display:block;
+    border:1px solid var(--trait); border-radius:10px;
+  }
+  .ws-phone-crop{
+    overflow:hidden;
+    aspect-ratio:2/3;
+  }
+  .ws-phone{
+    position:relative; width:100%;
+    aspect-ratio:932/1868;
+  }
+  .ws-phone-frame{
+    position:absolute; inset:0; width:100%; height:100%; display:block; z-index:2;
+  }
+  .phone-screen{
+    position:absolute;
+    left:5.3%; top:2.3%; width:89.4%; height:95.4%;
+    overflow:hidden; border-radius:20px; background:#000;
+    z-index:1;
+  }
+  .ws-phone-shot{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:auto;
+    display:block;
+  }
+  .ws-hub{
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    text-align:center; padding-top:6px; padding-inline:12px;
+  }
+  .ws-arc-badge{display:flex; align-items:center; justify-content:center; margin-bottom:0}
+  .ws-arc-logo{
+    width:clamp(150px,11vw,210px); height:auto; display:block;
+    animation:ws-arc-glow 3.2s ease-in-out infinite;
+  }
+  .ws-arc-sous{
+    font-size:clamp(16px,1.15vw,20px); line-height:1.3; color:var(--texte-doux);
+    margin:11px 0 -20px; white-space:nowrap; font-weight:500;
+  }
+  .ws-arc{position:relative; width:calc(100% + 40px); height:85px}
+  .ws-arc-svg{display:block; width:100%; height:85px}
+  .ws-arc-stop-a{stop-color:var(--ws-vert-clair)}
+  .ws-arc-stop-b{stop-color:var(--ws-vert)}
+  .ws-arc-line{stroke:url(#ws-arc-grad); stroke-width:1.6; stroke-linecap:round; fill:none; opacity:.6}
+  .ws-arc-trail{fill:var(--ws-vert)}
+  .ws-arc-dot-moving{fill:var(--ws-vert); filter:drop-shadow(0 0 3px rgba(3,106,50,.5))}
+  .ws-arc-arrival{fill:var(--ws-vert)}
+  .ws-arc-dot-static{fill:var(--ws-vert); display:none}
+  @keyframes ws-arc-glow{
+    0%, 100%{filter:drop-shadow(0 0 1px rgba(11,47,82,.14)) drop-shadow(0 0 2px rgba(3,106,50,.09))}
+    20%{filter:drop-shadow(0 0 2px rgba(11,47,82,.18)) drop-shadow(0 0 3px rgba(3,106,50,.12))}
+    38%{filter:drop-shadow(0 0 1px rgba(11,47,82,.14)) drop-shadow(0 0 2px rgba(3,106,50,.09))}
+    42%{filter:drop-shadow(0 0 3px rgba(11,47,82,.26)) drop-shadow(0 0 6px rgba(3,106,50,.22))}
+    47%{filter:drop-shadow(0 0 1px rgba(11,47,82,.14)) drop-shadow(0 0 2px rgba(3,106,50,.09))}
+    75%{filter:drop-shadow(0 0 2px rgba(11,47,82,.18)) drop-shadow(0 0 3px rgba(3,106,50,.12))}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .ws-arc-motion-group{display:none}
+    .ws-arc-dot-static{display:block}
+    .ws-arc-logo{
+      animation:none;
+      filter:drop-shadow(0 0 2px rgba(11,47,82,.16)) drop-shadow(0 0 3px rgba(3,106,50,.12));
+    }
+  }
+  .ws-preuve-legende{text-align:center; margin:32px auto 0}
+  .ws-preuve-legende p{margin-left:auto; margin-right:auto}
+  @media (max-width:760px){
+    .ws-preuve{grid-template-columns:1fr; gap:24px}
+    .ws-arc{width:220px; left:auto; margin:0 auto}
+    .ws-preuve-label{font-size:20px}
+    .ws-arc-logo{width:150px}
+    .ws-arc-sous{font-size:16px}
+  }
+  @media (max-width:520px){
+    .section-whatsapp{padding:40px 20px}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <img class="hero-img" src="images/hero-mairie-hd.png" alt="">
+  <div class="hero-content">
+    <img class="logo" src="images/logo-mairie-diffusion.png" alt="Mairie Diffusion">
+    <h1>Faire circuler l'information, simplement.</h1>
+    <p class="chapeau">Pour les communes d'aujourd'hui.</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section>
+    <h2>Votre site reste. Votre information circule.</h2>
+    <p>Mairie Diffusion se greffe sur votre site existant, même s'il est ancien. Pas de refonte, pas de nouvel outil à alimenter.</p>
+    <ul class="points">
+      <li>
+        <h3>Vos habitants sont prévenus</h3>
+        <p>Les informations publiées sur votre site communal sont automatiquement relayées via WhatsApp. Pas de double saisie : vous continuez à publier comme aujourd'hui.</p>
+      </li>
+      <li>
+        <h3>Vos archives deviennent faciles à retrouver</h3>
+        <p>Bulletins et comptes rendus, même anciens ou scannés, deviennent consultables par mot-clé, avec accès au document d'origine.</p>
+      </li>
+    </ul>
+  </section>
+
+  </div>
+
+  <section class="section-whatsapp">
+    <div class="ws-inner">
+      <div class="ws-texte">
+        <h2>L'information vient à vos habitants</h2>
+        <p>Vous publiez une actualité sur votre site communal comme aujourd'hui. Mairie Diffusion la relaie automatiquement via WhatsApp à vos habitants.</p>
+        <p class="ws-accent">Aucun numéro de téléphone à saisir ou à gérer.</p>
+        <p>Les habitants choisissent eux-mêmes de suivre le canal de diffusion de leur mairie, simplement en scannant un QR code publié sur le site communal ou affiché en mairie.</p>
+        <p class="fort">Une publication. Pas de double saisie. Pas de fichier d'habitants à maintenir.</p>
+      </div>
+      <div class="ws-preuve">
+        <div class="ws-preuve-etape">
+          <p class="ws-preuve-label">1. Vous publiez comme aujourd'hui</p>
+          <img class="ws-preuve-img" src="images/houville-foodtruck-site.png" alt="Site communal de Houville-la-Branche affichant l'actualité Food Truck">
+        </div>
+        <div class="ws-hub" aria-hidden="true">
+          <div class="ws-arc-badge">
+            <img class="ws-arc-logo" src="images/logo-mairie-diffusion.png" alt="Mairie Diffusion">
+          </div>
+          <p class="ws-arc-sous">Diffusion automatique</p>
+          <div class="ws-arc">
+            <svg class="ws-arc-svg" viewBox="0 0 220 85" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="ws-arc-grad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" class="ws-arc-stop-a"></stop>
+                  <stop offset="100%" class="ws-arc-stop-b"></stop>
+                </linearGradient>
+              </defs>
+              <path id="ws-arc-path" class="ws-arc-line" d="M2,75 Q110,35 218,75"></path>
+
+              <g class="ws-arc-motion-group">
+                <circle class="ws-arc-trail" r="1.8">
+                  <animateMotion dur="3.2s" begin="0.12s" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;0.85;1" calcMode="linear">
+                    <mpath href="#ws-arc-path"></mpath>
+                  </animateMotion>
+                  <animate attributeName="opacity" values="0;.35;.35;0;0;0" keyTimes="0;0.04;0.80;0.88;0.99;1" dur="3.2s" begin="0.12s" repeatCount="indefinite"></animate>
+                </circle>
+                <circle class="ws-arc-dot-moving" r="3.6">
+                  <animateMotion dur="3.2s" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;0.85;1" calcMode="linear">
+                    <mpath href="#ws-arc-path"></mpath>
+                  </animateMotion>
+                  <animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;0.83;0.90;0.99;1" dur="3.2s" repeatCount="indefinite"></animate>
+                </circle>
+                <circle class="ws-arc-arrival" cx="218" cy="75" r="0">
+                  <animate attributeName="r" values="0;0;6;1;0;0" keyTimes="0;0.82;0.86;0.90;0.94;1" dur="3.2s" repeatCount="indefinite"></animate>
+                  <animate attributeName="opacity" values="0;0;.4;.12;0;0" keyTimes="0;0.82;0.86;0.90;0.94;1" dur="3.2s" repeatCount="indefinite"></animate>
+                </circle>
+              </g>
+
+              <circle class="ws-arc-dot-static" r="3.6" cx="2" cy="75"></circle>
+            </svg>
+          </div>
+        </div>
+        <div class="ws-preuve-etape">
+          <p class="ws-preuve-label">2. Vos habitants sont informés</p>
+          <div class="ws-phone-crop">
+            <div class="ws-phone">
+              <div class="phone-screen">
+                <img class="ws-phone-shot" src="images/houville-foodtruck-whatsapp.jpg" alt="Channel WhatsApp Mairie Houville affichant la même actualité Food Truck">
+              </div>
+              <img class="ws-phone-frame" src="images/phone-frame.png" alt="">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ws-preuve-legende">
+        <p class="fort">Une publication. Pas de double saisie. Pas de fichier d'habitants à maintenir.</p>
+        <p class="ws-note">Les habitants choisissent eux-mêmes de suivre le canal de leur mairie.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-oedicneme">
+    <div class="oed-inner">
+      <div class="oed-phone-crop">
+        <div class="oed-phone">
+          <div class="phone-screen">
+            <img class="oed-phone-shot" src="images/oedicneme-travaux.png" alt="Recherche du mot « travaux » dans les archives : comptes rendus du conseil municipal avec le passage surligné et lien vers le document original">
+          </div>
+          <img class="oed-phone-frame" src="images/phone-frame.png" alt="">
+        </div>
+      </div>
+      <div class="oed-texte">
+        <p class="oed-label">Œdicnème — module optionnel de recherche documentaire</p>
+        <h2>Une question, une réponse,<br>sa source</h2>
+        <p>Un habitant recherche « travaux ».</p>
+        <p>En quelques secondes, Œdicnème retrouve les documents qui en parlent, affiche le passage correspondant et permet d'ouvrir le document original.</p>
+        <span class="oed-sep" aria-hidden="true"></span>
+        <p class="fort">Les documents restent ceux de la commune.</p>
+        <p>Œdicnème travaille uniquement à partir des documents déjà publiés par la commune. Il en facilite l'accès et la recherche.</p>
+        <p>Ce module est optionnel. Il peut être activé, par exemple, pour les comptes rendus du conseil municipal et les bulletins municipaux déjà publiés sur votre site.</p>
+        <p class="oed-mention">Les couleurs et la mascotte peuvent être adaptées à l'identité de votre commune.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap">
+
+  <section>
+    <h2>Sans charge pour la mairie</h2>
+    <ul class="points">
+      <li>
+        <h3>Rien ne change dans vos habitudes</h3>
+        <p>Votre site reste en place, même ancien. Les nouvelles publications sont récupérées automatiquement. Pas de refonte, pas de formation, pas de saisie en double.</p>
+      </li>
+      <li>
+        <h3>Aucune donnée personnelle</h3>
+        <p>Pas de fichier d'habitants, pas de numéros collectés, pas de compte à créer, pas de cookie. Conformité RGPD par conception : il n'y a rien à protéger, puisque rien n'est collecté.</p>
+      </li>
+      <li>
+        <h3>Sans intelligence artificielle</h3>
+        <p>La recherche fonctionne par correspondance de mots. Rien n'est reformulé ni interprété : vos textes sont montrés tels quels. Plus fidèle, et bien plus sobre en énergie.</p>
+      </li>
+      <li>
+        <h3>Conçu en France, hébergé dans l'Union européenne</h3>
+        <p>Développé et exploité depuis l'Eure-et-Loir.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Ce que ce n'est pas</h2>
+    <ul class="negatif">
+      <li>Une application à faire télécharger et adopter par vos habitants</li>
+      <li>Une refonte de votre site internet</li>
+      <li>Un réseau social communal à animer au quotidien</li>
+      <li>Une plateforme qui constitue un fichier de vos administrés</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="demo">
+      <h2>Voir avant de décider</h2>
+      <p>Le service fonctionne aujourd'hui sur une commune d'Eure-et-Loir. Interrogez ses archives réelles depuis votre téléphone.</p>
+      <p class="module-name">Œdicnème — la recherche documentaire de Mairie Diffusion</p>
+      <a class="lien" href="https://webapp-oedicneme.vercel.app" target="_blank" rel="noopener">Essayer la recherche</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>Je peux mettre en place une version d'essai sur votre commune, sans engagement, pour que vous jugiez sur vos propres documents.</p>
+    <p class="signature">
+      <img src="images/logo-mairie-diffusion.png" alt="Mairie Diffusion" style="width:100%;max-width:420px;height:auto;display:block;margin-bottom:16px">
+      Frédéric Lambert — auto-entrepreneur<br>
+      <a href="mailto:mairie.diffusion@gmail.com" style="color:inherit">mairie.diffusion@gmail.com</a><br>
+      Eure-et-Loir</p>
+  </footer>
+
+</div>
+</body>
+</html>
