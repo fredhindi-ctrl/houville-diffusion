@@ -112,8 +112,16 @@
   .oed-phone-crop{overflow:hidden; aspect-ratio:2/3; max-width:410px}
   .oed-phone{position:relative; width:100%; aspect-ratio:932/1868}
   .oed-phone-frame{position:absolute; inset:0; width:100%; height:100%; display:block; z-index:2}
-  .oed-phone-shot{position:absolute; top:0; left:0; width:100%; height:auto; display:block}
-  .oed-label{font-weight:700; font-size:13px; color:var(--oed-accent); margin:0 0 14px}
+  .oed-phone-shot-wrap{position:absolute; inset:0; overflow:hidden}
+  .oed-shot-status{position:relative; width:100%; height:3.67%; overflow:hidden}
+  .oed-shot-status img{position:absolute; top:0; left:0; width:100%; height:auto; display:block}
+  .oed-shot-content{position:relative; width:100%; height:calc(100% - 3.67%); overflow:hidden}
+  .oed-shot-content img{
+    position:absolute; top:0; left:0; width:100%; height:auto; display:block;
+    transform:translateY(-12%);
+  }
+  .oed-label{font-weight:700; font-size:13px; color:var(--oed-accent); margin:0 0 4px}
+  .oed-sous-label{font-size:12px; color:var(--texte-doux); margin:0 0 14px}
   .oed-inner h2{color:var(--oed-texte)}
   .oed-sep{display:block; width:40px; height:2px; background:var(--oed-accent); opacity:.7; margin:24px 0}
   .oed-texte .fort{color:var(--oed-texte)}
@@ -408,21 +416,29 @@
       <div class="oed-phone-crop">
         <div class="oed-phone">
           <div class="phone-screen">
-            <img class="oed-phone-shot" src="images/oedicneme-travaux.png" alt="Recherche du mot « travaux » dans les archives : comptes rendus du conseil municipal avec le passage surligné et lien vers le document original">
+            <div class="oed-phone-shot-wrap">
+              <div class="oed-shot-status">
+                <img src="images/oedicneme-travaux.png" alt="">
+              </div>
+              <div class="oed-shot-content">
+                <img src="images/oedicneme-travaux.png" alt="Recherche du mot « travaux » dans les archives : comptes rendus du conseil municipal avec le passage surligné et lien vers le document original">
+              </div>
+            </div>
           </div>
           <img class="oed-phone-frame" src="images/phone-frame.png" alt="">
         </div>
       </div>
       <div class="oed-texte">
-        <p class="oed-label">Œdicnème — module optionnel de recherche documentaire</p>
+        <p class="oed-label">Mairie Diffusion · Recherche</p>
+        <p class="oed-sous-label">Module optionnel de recherche documentaire</p>
         <h2>Une question, une réponse,<br>sa source</h2>
         <p>Un habitant recherche « travaux ».</p>
-        <p>En quelques secondes, Œdicnème retrouve les documents qui en parlent, affiche le passage correspondant et permet d'ouvrir le document original.</p>
+        <p>En quelques secondes, le module retrouve les documents qui en parlent, affiche le passage correspondant et permet d'ouvrir le document original.</p>
         <span class="oed-sep" aria-hidden="true"></span>
         <p class="fort">Les documents restent ceux de la commune.</p>
-        <p>Œdicnème travaille uniquement à partir des documents déjà publiés par la commune. Il en facilite l'accès et la recherche.</p>
+        <p>Le module travaille uniquement à partir des documents déjà publiés par la commune. Il en facilite l'accès et la recherche.</p>
         <p>Ce module est optionnel. Il peut être activé, par exemple, pour les comptes rendus du conseil municipal et les bulletins municipaux déjà publiés sur votre site.</p>
-        <p class="oed-mention">Les couleurs et la mascotte peuvent être adaptées à l'identité de votre commune.</p>
+        <p class="oed-mention">Les couleurs de l'interface peuvent être adaptées à l'identité de votre commune.</p>
       </div>
     </div>
   </section>
