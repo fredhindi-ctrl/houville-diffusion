@@ -32,6 +32,7 @@
     font-size:17px; line-height:1.55;
   }
   .wrap{max-width:660px;margin:0 auto;padding:0 24px}
+  .section-site-reste{background:#FAFAF7}
 
   .bandeau{
     width:100%;
@@ -84,6 +85,15 @@
     font-size:clamp(21px,3.6vw,26px); line-height:1.2;
     letter-spacing:-.022em; margin:0 0 20px; max-width:22ch;
   }
+  .section-kicker{
+    font-family:Figtree,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-weight:700; font-size:15px; line-height:1.2;
+  }
+  .section-headline{
+    font-family:Figtree,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-weight:700; font-size:clamp(32px,3vw,46px); line-height:1.1;
+    color:#243446;
+  }
   p{margin:0 0 16px;max-width:56ch}
   p:last-child{margin-bottom:0}
 
@@ -100,7 +110,7 @@
   }
 
   .section-oedicneme{
-    --oed-bg:#F1EDE3; --oed-bg-clair:#FBF9F4; --oed-bordure:#D8CDB8;
+    --oed-bg:#E7DED0; --oed-bg-clair:#FBF9F4; --oed-bordure:#D8CDB8;
     --oed-texte:#243446; --oed-accent:#A56E2B;
     width:100%; background:var(--oed-bg); border-bottom:1px solid var(--oed-bordure);
     padding:56px 24px;
@@ -120,9 +130,8 @@
     position:absolute; top:0; left:0; width:100%; height:auto; display:block;
     transform:translateY(-12%);
   }
-  .oed-label{font-weight:700; font-size:13px; color:var(--oed-accent); margin:0 0 4px}
-  .oed-sous-label{font-size:12px; color:var(--texte-doux); margin:0 0 14px}
-  .oed-inner h2{color:var(--oed-texte)}
+  .oed-label{color:var(--oed-accent); margin:0 0 4px}
+  .oed-sous-label{font-size:12px; font-weight:500; color:var(--texte-doux); margin:0 0 14px}
   .oed-sep{display:block; width:40px; height:2px; background:var(--oed-accent); opacity:.7; margin:24px 0}
   .oed-texte .fort{color:var(--oed-texte)}
   .oed-mention{font-size:13px; color:var(--texte-doux); margin:18px 0 0}
@@ -151,17 +160,26 @@
     line-height:1.4; max-width:26ch; margin:0 0 20px;
   }
 
-  .negatif{margin:0;padding:0}
-  .negatif li{
-    padding:13px 0 13px 26px; position:relative;
-    color:var(--texte-doux); font-size:16px;
-    border-bottom:1px solid var(--trait); list-style:none;
+  .section-pas{width:100%; padding:56px 24px; background:#E3E9E8}
+  .pas-inner{max-width:1080px; margin:0 auto}
+  .pas-grid{
+    list-style:none; margin:0; padding:0;
+    display:grid; grid-template-columns:1fr 1fr; column-gap:48px;
   }
-  .negatif li:first-child{padding-top:0}
-  .negatif li:last-child{border-bottom:0;padding-bottom:0}
-  .negatif li::before{
+  .pas-grid li{
+    padding:20px 0 20px 26px; position:relative;
+    color:var(--texte-doux); font-size:16px;
+    border-bottom:1px solid var(--trait);
+  }
+  .pas-grid li::before{
     content:"—"; position:absolute; left:0;
     color:var(--oeil); font-weight:600;
+  }
+  .pas-grid li:nth-last-child(-n+2){border-bottom:0}
+  @media (max-width:760px){
+    .pas-grid{grid-template-columns:1fr}
+    .pas-grid li:nth-last-child(-n+2){border-bottom:1px solid var(--trait)}
+    .pas-grid li:last-child{border-bottom:0}
   }
 
   .capture{
@@ -182,15 +200,8 @@
     color:var(--texte-doux);
   }
 
-  .demo{
-    background:var(--carte); border:1px solid var(--trait);
-    border-radius:14px; padding:28px;
-  }
-  .demo h2{margin-bottom:12px}
-  .demo p{color:var(--texte-doux);font-size:16px}
-  .demo .module-name{font-size:14px;margin:0 0 10px}
   .lien{
-    display:inline-block; margin-top:10px; background:var(--encre);
+    display:inline-block; background:var(--encre);
     color:#f2f2f0; text-decoration:none; font-weight:600; font-size:16px;
     padding:13px 26px; border-radius:9px; transition:opacity .15s ease;
   }
@@ -201,18 +212,28 @@
   .lien:hover{opacity:.87}
   .lien:focus-visible{outline:3px solid var(--oeil);outline-offset:3px}
 
-  footer{padding:40px 0 68px;color:var(--texte-doux);font-size:15px}
-  footer p{max-width:54ch}
-  .signature{margin-top:20px;padding-top:20px;border-top:1px solid var(--trait)}
+  footer{width:100%; padding:40px 24px 24px; color:var(--texte-doux); font-size:15px}
+  .footer-inner{max-width:1080px; margin:0 auto; display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:40px}
+  .footer-logo{width:120px; height:auto; display:block; margin:0 0 12px}
+  .footer-nom{font-weight:700; color:var(--texte); font-size:16px; margin:0 0 4px}
+  .footer-baseline{margin:0; font-size:15px; color:#4B5563}
+  .footer-titre{font-weight:700; color:var(--texte); font-size:14px; margin:0 0 10px}
+  .footer-texte{margin:0; font-size:15px; line-height:1.9; color:#4B5563}
+  .footer-texte a{color:#243446}
+  .footer-texte a:hover{opacity:.87}
+  .footer-copyright{max-width:1080px; margin:32px auto 0; padding-top:16px; border-top:1px solid var(--trait); font-size:14px; color:#4B5563}
+  @media (max-width:760px){
+    .footer-inner{grid-template-columns:1fr; gap:28px}
+  }
 
   @media (max-width:520px){
     body{font-size:16px} header{padding:30px 0 36px}
-    section{padding:38px 0} .demo{padding:22px}
+    section{padding:38px 0}
   }
   @media (prefers-reduced-motion: reduce){*{transition:none !important}}
 
   .section-whatsapp{
-    --ws-bg:#eae9e5; --ws-vert:#036a32; --ws-bleu:#0b2f52; --ws-vert-clair:#baf1b8;
+    --ws-bg:#E8EEEB; --ws-vert:#036a32; --ws-bleu:#0b2f52; --ws-vert-clair:#baf1b8;
     width:100%; background:var(--ws-bg); padding:56px 24px;
   }
   @media (prefers-color-scheme: dark){
@@ -222,17 +243,21 @@
   .ws-inner{max-width:1080px; margin:0 auto}
   .ws-texte{margin:0 0 40px}
   .ws-accent{color:var(--ws-vert); font-weight:700; font-size:17px; margin:0 0 16px}
+  .ws-kicker{color:var(--ws-vert); margin:0 0 4px}
   .ws-note{font-size:14px; color:var(--texte-doux); margin:0}
 
   .ws-preuve{
     display:grid; grid-template-columns:9fr 3fr 7fr; gap:20px; align-items:start;
   }
   .ws-preuve-etape{min-width:0}
-  .ws-preuve-label{font-weight:700; font-size:clamp(20px,1.6vw,28px); line-height:1.15; margin:0 0 16px}
-  .ws-preuve-img{
-    width:100%; height:auto; display:block;
-    border:1px solid var(--trait); border-radius:10px;
+  .ws-preuve-label{font-weight:700; font-size:clamp(20px,1.6vw,28px); line-height:1.15; margin:0 0 16px; white-space:nowrap}
+  .ws-laptop{position:relative; width:109%; margin-left:-4.5%; aspect-ratio:1098/640}
+  .ws-laptop-frame{position:absolute; inset:0; width:100%; height:100%; display:block; z-index:2}
+  .ws-laptop-screen-area{
+    position:absolute; overflow:hidden;
+    left:12.11%; top:7.19%; width:75.86%; height:81.25%;
   }
+  .ws-laptop-shot{width:100%; height:100%; object-fit:cover; display:block}
   .ws-phone-crop{
     overflow:hidden;
     aspect-ratio:2/3;
@@ -260,7 +285,7 @@
   }
   .ws-hub{
     display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
-    text-align:center; padding-top:6px; padding-inline:12px;
+    text-align:center; padding-top:0; padding-inline:12px;
   }
   .ws-arc-badge{display:flex; align-items:center; justify-content:center; margin-bottom:0}
   .ws-arc-logo{
@@ -308,6 +333,50 @@
   @media (max-width:520px){
     .section-whatsapp{padding:40px 20px}
   }
+
+  .section-sans-charge{width:100%; padding:56px 24px}
+  .sc-inner{max-width:1080px; margin:0 auto}
+  .sc-cols{display:grid; grid-template-columns:repeat(3,1fr); gap:0; margin:8px 0 32px}
+  .sc-col{padding:0 32px}
+  .sc-col:first-child{padding-left:0}
+  .sc-col:last-child{padding-right:0}
+  .sc-col + .sc-col{border-left:1px solid var(--trait)}
+  .sc-col h3{font-size:17px; font-weight:700; color:#243446; margin:0 0 8px; letter-spacing:-.015em}
+  .sc-col p{margin:0; color:var(--texte-doux); font-size:16px; max-width:none}
+  .sc-mention{font-size:14px; color:var(--texte-doux); margin:0}
+  @media (max-width:760px){
+    .sc-cols{grid-template-columns:1fr; gap:0; margin:8px 0 28px}
+    .sc-col{padding:24px 0 0}
+    .sc-col:first-child{padding-top:0}
+    .sc-col + .sc-col{border-left:none; border-top:1px solid var(--trait)}
+  }
+
+  .section-prix{width:100%; background:#17374A; padding:56px 24px}
+  .prix-inner{max-width:1080px; margin:0 auto}
+  .prix-surtitre{color:#9FC1D1; margin:0 0 4px}
+  .section-prix .section-headline{color:#ffffff; margin:0 0 24px}
+  .prix-montant{
+    font-family:Figtree,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-weight:700; font-size:clamp(36px,5vw,56px); line-height:1.1;
+    color:#ffffff; margin:0 0 20px;
+  }
+  .prix-liste{list-style:none; margin:0; padding:0; display:grid; gap:10px}
+  .prix-liste li{position:relative; padding-left:22px; color:#ffffff; font-size:17px; font-weight:600}
+  .prix-liste li::before{content:"•"; position:absolute; left:0; color:#9FC1D1; font-weight:600}
+
+  .section-cta{width:100%; background:#FAFAF7; padding:56px 24px}
+  .cta-inner{
+    max-width:1080px; margin:0 auto;
+    display:grid; grid-template-columns:1fr auto; gap:40px; align-items:center;
+  }
+  .cta-action{display:flex; flex-direction:column; align-items:flex-end; text-align:right}
+  .cta-mention{font-size:14px; color:var(--texte-doux); margin:12px 0 0}
+  @media (max-width:760px){
+    .prix-montant{margin:0 0 16px}
+    .cta-inner{grid-template-columns:1fr; gap:24px}
+    .cta-action{align-items:stretch; text-align:left}
+    .cta-action .lien{width:100%; text-align:center}
+  }
 </style>
 </head>
 <body>
@@ -321,10 +390,11 @@
   </div>
 </div>
 
-<div class="wrap">
+<div class="section-site-reste">
+  <div class="wrap">
 
   <section>
-    <h2>Votre site reste. Votre information circule.</h2>
+    <h2 class="section-headline">Votre site reste. Votre information circule.</h2>
     <p>Mairie Diffusion se greffe sur votre site existant, même s'il est ancien. Pas de refonte, pas de nouvel outil à alimenter.</p>
     <ul class="points">
       <li>
@@ -339,11 +409,13 @@
   </section>
 
   </div>
+  </div>
 
   <section class="section-whatsapp">
     <div class="ws-inner">
       <div class="ws-texte">
-        <h2>L'information vient à vos habitants</h2>
+        <p class="ws-kicker section-kicker">Mairie Diffusion · WhatsApp</p>
+        <h2 class="section-headline">L'information vient à vos habitants</h2>
         <p>Vous publiez une actualité sur votre site communal comme aujourd'hui. Mairie Diffusion la relaie automatiquement via WhatsApp à vos habitants.</p>
         <p class="ws-accent">Aucun numéro de téléphone à saisir ou à gérer.</p>
         <p>Les habitants choisissent eux-mêmes de suivre le canal de diffusion de leur mairie, simplement en scannant un QR code publié sur le site communal ou affiché en mairie.</p>
@@ -352,7 +424,12 @@
       <div class="ws-preuve">
         <div class="ws-preuve-etape">
           <p class="ws-preuve-label">1. Vous publiez comme aujourd'hui</p>
-          <img class="ws-preuve-img" src="images/houville-foodtruck-site.png" alt="Site communal de Houville-la-Branche affichant l'actualité Food Truck">
+          <div class="ws-laptop">
+            <div class="ws-laptop-screen-area">
+              <img class="ws-laptop-shot" src="images/houville-foodtruck-site.png" alt="Site communal de Houville-la-Branche affichant l'actualité Food Truck">
+            </div>
+            <img class="ws-laptop-frame" src="images/transparent_laptop_frame_mockup.png" alt="">
+          </div>
         </div>
         <div class="ws-hub" aria-hidden="true">
           <div class="ws-arc-badge">
@@ -429,9 +506,9 @@
         </div>
       </div>
       <div class="oed-texte">
-        <p class="oed-label">Mairie Diffusion · Recherche</p>
+        <p class="oed-label section-kicker">Mairie Diffusion · Recherche</p>
         <p class="oed-sous-label">Module optionnel de recherche documentaire</p>
-        <h2>Une question, une réponse,<br>sa source</h2>
+        <h2 class="section-headline">Une question, une réponse,<br>sa source</h2>
         <p>Un habitant recherche « travaux ».</p>
         <p>En quelques secondes, le module retrouve les documents qui en parlent, affiche le passage correspondant et permet d'ouvrir le document original.</p>
         <span class="oed-sep" aria-hidden="true"></span>
@@ -443,58 +520,100 @@
     </div>
   </section>
 
-  <div class="wrap">
-
-  <section>
-    <h2>Sans charge pour la mairie</h2>
-    <ul class="points">
-      <li>
-        <h3>Rien ne change dans vos habitudes</h3>
-        <p>Votre site reste en place, même ancien. Les nouvelles publications sont récupérées automatiquement. Pas de refonte, pas de formation, pas de saisie en double.</p>
-      </li>
-      <li>
-        <h3>Aucune donnée personnelle</h3>
-        <p>Pas de fichier d'habitants, pas de numéros collectés, pas de compte à créer, pas de cookie. Conformité RGPD par conception : il n'y a rien à protéger, puisque rien n'est collecté.</p>
-      </li>
-      <li>
-        <h3>Sans intelligence artificielle</h3>
-        <p>La recherche fonctionne par correspondance de mots. Rien n'est reformulé ni interprété : vos textes sont montrés tels quels. Plus fidèle, et bien plus sobre en énergie.</p>
-      </li>
-      <li>
-        <h3>Conçu en France, hébergé dans l'Union européenne</h3>
-        <p>Développé et exploité depuis l'Eure-et-Loir.</p>
-      </li>
-    </ul>
+  <section class="section-sans-charge">
+    <div class="sc-inner">
+      <h2 class="section-headline"><span style="display:block">L'information va plus loin,</span><span style="display:block">sans changer vos habitudes</span><span style="display:block">ni alourdir votre budget.</span></h2>
+      <div class="sc-cols">
+        <div class="sc-col">
+          <h3>Rien ne change dans vos habitudes</h3>
+          <p>Votre site reste en place, même ancien. Les nouvelles publications sont récupérées automatiquement. Pas de refonte, pas de formation, pas de saisie en double.</p>
+        </div>
+        <div class="sc-col">
+          <h3>RGPD dès la conception</h3>
+          <p>Pas de fichier d'habitants, pas de numéros collectés, pas de compte à créer, pas de profilage.</p>
+        </div>
+        <div class="sc-col">
+          <h3>Sans IA</h3>
+          <p>La recherche retrouve les passages correspondants dans les documents publiés par la commune. Rien n'est inventé ni reformulé : le texte affiché vient directement de la source originale.</p>
+        </div>
+      </div>
+      <p class="sc-mention">Conçu en Eure-et-Loir. Hébergé en France.</p>
+    </div>
   </section>
 
-  <section>
-    <h2>Ce que ce n'est pas</h2>
-    <ul class="negatif">
-      <li>Une application à faire télécharger et adopter par vos habitants</li>
-      <li>Une refonte de votre site internet</li>
-      <li>Un réseau social communal à animer au quotidien</li>
-      <li>Une plateforme qui constitue un fichier de vos administrés</li>
-    </ul>
+  <section class="section-pas">
+    <div class="pas-inner">
+      <h2 class="section-headline">Ce que ce n'est pas</h2>
+      <ul class="pas-grid">
+        <li>Une application à faire télécharger et adopter par vos habitants</li>
+        <li>Une refonte de votre site internet</li>
+        <li>Un réseau social communal à animer au quotidien</li>
+        <li>Une plateforme qui constitue un fichier de vos administrés</li>
+      </ul>
+    </div>
   </section>
 
-  <section>
-    <div class="demo">
-      <h2>Voir avant de décider</h2>
-      <p>Le service fonctionne aujourd'hui sur une commune d'Eure-et-Loir. Interrogez ses archives réelles depuis votre téléphone.</p>
-      <p class="module-name">Œdicnème — la recherche documentaire de Mairie Diffusion</p>
-      <a class="lien" href="https://webapp-oedicneme.vercel.app" target="_blank" rel="noopener">Essayer la recherche</a>
+  <section class="section-prix">
+    <div class="prix-inner">
+      <p class="prix-surtitre section-kicker">Offre pilote Mairie Diffusion</p>
+      <h2 class="section-headline">Une offre simple pour les petites communes</h2>
+      <p class="prix-montant">290 € HT / an</p>
+      <ul class="prix-liste">
+        <li>Diffusion WhatsApp incluse</li>
+        <li>Module Recherche inclus, activable à la demande</li>
+        <li>Mise en place incluse</li>
+        <li>Hébergement et maintenance inclus</li>
+        <li>Fonctionne avec ou sans site communal</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section-cta">
+    <div class="cta-inner">
+      <div class="cta-texte">
+        <h2 class="section-headline">Et si Mairie Diffusion fonctionnait dans votre commune ?</h2>
+        <p>Découvrez en 30 minutes comment Mairie Diffusion peut s'intégrer à votre façon de publier et de communiquer avec vos habitants.</p>
+        <p class="fort">Pendant l'échange, je vous montre Mairie Diffusion en fonctionnement sur des informations municipales réelles.</p>
+      </div>
+      <div class="cta-action">
+        <a class="lien" href="" onclick="return openCalendly(event)">Réserver une démonstration de 30 min</a>
+        <p class="cta-mention">Échange direct avec le concepteur de Mairie Diffusion.</p>
+      </div>
     </div>
   </section>
 
   <footer>
-    <p>Je peux mettre en place une version d'essai sur votre commune, sans engagement, pour que vous jugiez sur vos propres documents.</p>
-    <p class="signature">
-      <img src="images/logo-mairie-diffusion.png" alt="Mairie Diffusion" style="width:100%;max-width:420px;height:auto;display:block;margin-bottom:16px">
-      Frédéric Lambert — auto-entrepreneur<br>
-      <a href="mailto:mairie.diffusion@gmail.com" style="color:inherit">mairie.diffusion@gmail.com</a><br>
-      Eure-et-Loir</p>
+    <div class="footer-inner">
+      <div class="footer-col footer-marque">
+        <img class="footer-logo" src="images/logo-mairie-diffusion.png" alt="Mairie Diffusion">
+        <p class="footer-nom">Mairie Diffusion</p>
+        <p class="footer-baseline">Faire circuler l'information, simplement.</p>
+      </div>
+      <div class="footer-col">
+        <p class="footer-titre">Contact</p>
+        <p class="footer-texte"><a href="mailto:contact@mairiediffusion.fr">contact@mairiediffusion.fr</a><br>Eure-et-Loir</p>
+      </div>
+      <div class="footer-col">
+        <p class="footer-titre">Informations</p>
+        <p class="footer-texte"><a href="mentions-legales.html">Mentions légales</a><br><a href="confidentialite.html">Politique de confidentialité</a></p>
+      </div>
+    </div>
+    <p class="footer-copyright">© 2026 Mairie Diffusion</p>
   </footer>
-
-</div>
+<script>
+function openCalendly(e){
+  e.preventDefault();
+  if (window.Calendly){ Calendly.initPopupWidget({url:'https://calendly.com/mairiediffusion/30min'}); return false; }
+  var css = document.createElement('link');
+  css.rel = 'stylesheet';
+  css.href = 'https://assets.calendly.com/assets/external/widget.css';
+  document.head.appendChild(css);
+  var script = document.createElement('script');
+  script.src = 'https://assets.calendly.com/assets/external/widget.js';
+  script.onload = function(){ Calendly.initPopupWidget({url:'https://calendly.com/mairiediffusion/30min'}); };
+  document.head.appendChild(script);
+  return false;
+}
+</script>
 </body>
 </html>
