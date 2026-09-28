@@ -57,11 +57,17 @@
   .hero-content h1{max-width:230px;font-size:clamp(21px,3.2vw,28px)}
   .hero-content .chapeau{max-width:230px;font-size:15px;color:var(--texte)}
   @media (max-width:640px){
-    .hero{aspect-ratio:1/1}
-    .hero-img{object-position:0% 20%}
-    .hero-content{justify-content:flex-start;padding-top:24px}
-    .hero-content h1{max-width:210px}
-    .hero-content .chapeau{max-width:210px}
+    .hero{aspect-ratio:16/9}
+    .hero-img{object-position:center}
+    .hero-content{justify-content:flex-start;padding-top:14px;align-items:flex-start}
+    .hero-content .logo{width:120px;margin:0 0 8px}
+    .hero-card{
+      background:rgba(255,255,255,.45);
+      -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px);
+      border-radius:8px; padding:6px 10px;
+    }
+    .hero-content h1{max-width:210px;font-size:20px;margin:0 0 4px;line-height:1.2}
+    .hero-content .chapeau{max-width:210px;font-size:14px;margin:0}
   }
 
   /* Scroll cue: visible within the initial viewport and contained in the hero. */
@@ -176,7 +182,8 @@
   .oed-mention{font-size:14px; color:var(--texte-doux); margin:18px 0 0}
   @media (max-width:760px){
     .oed-inner{grid-template-columns:1fr; gap:28px}
-    .oed-phone-crop{max-width:none}
+    .oed-phone-crop{max-width:none; order:2}
+    .oed-texte{order:1}
   }
 
   .capture{
@@ -555,8 +562,10 @@
   <img class="hero-img" src="images/hero-mairie-hd.png" alt="">
   <div class="hero-content">
     <img class="logo" src="images/logo-mairie-diffusion.png" alt="Mairie Diffusion">
-    <h1>Faire circuler l'information, simplement.</h1>
-    <p class="chapeau">Pour les communes d'aujourd'hui.</p>
+    <div class="hero-card">
+      <h1>Faire circuler l'information, simplement.</h1>
+      <p class="chapeau">Pour les communes d'aujourd'hui.</p>
+    </div>
   </div>
   <a class="hero-scroll-cue" href="#fonctionnement" aria-label="Découvrir la suite">
     <span class="hero-scroll-label" aria-hidden="true">Découvrir</span>
