@@ -2,7 +2,7 @@
 
 **Source de vérité actuelle du POC Houville-la-Branche.**
 
-Mise à jour : **17 septembre 2026**.
+Mise à jour : **28 septembre 2026**.
 
 L'ancien historique détaillé des essais Baileys, Koyeb, Render et Telegram reste accessible
 dans l'historique Git. Il ne décrit plus l'architecture courante et n'est donc plus conservé
@@ -322,3 +322,98 @@ Ne pas transformer ce dépôt en SaaS avant validation de la disposition à paye
 La prochaine étape est de conserver ce POC comme démonstrateur Houville et de tester le concept
 commercial auprès de petites communes. Le multi-tenant, la facturation et le portail admin ne
 sont justifiés qu'après un signal commercial réel.
+
+## 13. Landing page commerciale (pitch mairies)
+
+Landing page complète dédiée à la prospection de nouvelles communes, séparée de la WebApp
+Œdicnème (aucun impact sur le produit déployé).
+
+**Emplacement et déploiement** : `landing-page/index.html`, dans le dépôt, poussé sur `main`.
+Déployée en production sur Vercel : `https://landing-page-chi-rosy-62.vercel.app` (projet
+`landing-page`, équipe `fred-ac2b`). **Limite connue** : l'auto-déploiement Vercel depuis les
+push GitHub ne fonctionne pas correctement pour ce sous-dossier (mauvais root directory
+détecté) — chaque mise à jour du site en ligne nécessite un déploiement manuel
+(`npx vercel --prod` lancé depuis `landing-page/`).
+
+**Architecture de marque** : "Mairie Diffusion" est la marque commerciale principale
+(logo, titre, ton). "Œdicnème" n'apparaît plus dans la présentation commerciale visible —
+c'est uniquement le nom interne du module de recherche documentaire, présenté sous le libellé
+"Mairie Diffusion · Recherche". Le nom "Œdicnème" reste dans le code/fichiers de la WebApp
+elle-même (non renommée, hors périmètre).
+
+**Logo** : un seul logo (`images/logo-mairie-diffusion.png`) utilisé partout — header, hero,
+section WhatsApp, footer, pages légales. Un mark court dérivé ("bulle + MD", lettres
+recomposées à partir de l'icône existante) a été fabriqué pour le centre du QR code de la
+section WhatsApp. Les anciennes variantes colorimétriques (`images/logo-variantes/`) ne sont
+plus utilisées, décision tranchée en faveur du logo de référence.
+
+**Contenu de la page** (sections, dans l'ordre) : hero (photo réelle + carte translucide sur
+mobile pour la lisibilité du texte, desktop non recadré) → "Votre site reste" → section
+WhatsApp (parcours 3 étapes QR/laptop/téléphone, QR code réel généré localement — pas de
+service tiers — pointant vers un canal WhatsApp de démonstration, bande de bénéfices) →
+section Recherche ("Mairie Diffusion · Recherche", ordre texte-puis-visuel sur mobile) →
+"Ce que ce n'est pas" → offre (290 € HT/an) → CTA avec intégration Calendly (popup, scripts
+chargés uniquement au clic, pas au chargement de la page) → footer avec liens vers
+`mentions-legales.html` et `confidentialite.html` (pages également dans le dépôt).
+
+**Point non résolu** : le lien Calendly du CTA pointe encore vers le slug `/30min`
+(`https://calendly.com/mairiediffusion/30min`) alors que le texte affiché annonce "20 minutes"
+— à corriger dès qu'une URL Calendly valide à 20 min est fournie ; ne pas fabriquer de slug.
+
+## 14. POC WhatsApp Channel (whatsmeow) — validé
+
+**Exigence produit** : un groupe WhatsApp n'est pas acceptable pour Mairie Diffusion (habitants
+visibles entre eux, pas de vrai flux d'abonnement). Cible : Site communal → Mairie Diffusion →
+vrai WhatsApp Channel de la mairie → habitants abonnés volontairement, sans jamais saisir de
+numéro de téléphone.
+
+**Audit du worker existant** (`whatsapp-worker/`, whatsmeow
+`v0.0.0-20260821141805-33cfac511629`) : aucune modification nécessaire côté architecture.
+`client.SendMessage(ctx, jid, message)` — déjà utilisé pour le groupe dans `queue.go` — dispatche
+en interne selon `jid.Server` (groupe, DM ou `newsletter`). Le code actuel ne suppose "groupe"
+que par nommage (`WHATSAPP_GROUP_JID`, commentaires), jamais structurellement. Le module
+whatsmeow déjà en place expose intégralement le support des Channels : `CreateNewsletter`,
+`GetNewsletterInfo`, `GetNewsletterInfoWithInvite`, `GetSubscribedNewsletters`,
+`FollowNewsletter`/`UnfollowNewsletter`, `UploadNewsletter` (média), et l'envoi via le même
+`SendMessage` avec un JID `@newsletter`. Aucune mise à jour de version requise.
+
+**POC réel exécuté le 18/09/2026, via l'outil isolé** `whatsapp-worker/cmd/channel-test/`
+(ne touche ni `messages_a_envoyer`, ni `WHATSAPP_GROUP_JID`, ni aucun autre composant).
+Résultat validé empiriquement :
+
+- publication automatique réussie depuis notre programme Go utilisant la session whatsmeow
+  existante ;
+- destination : vrai WhatsApp Channel, pas un groupe ;
+- Channel : Mairie-Diffusion : Goureville ;
+- JID : `120363413874422398@newsletter` ;
+- type vérifié comme `newsletter/channel` avant envoi (refus explicite si JID de groupe) ;
+- message envoyé : « Test Mairie Diffusion — publication automatique sur le canal WhatsApp
+  réussie. » ;
+- ID message WhatsApp : `3EB02E9F85BCE6FFF67F35` ;
+- message vérifié visuellement sur le Channel à 17:29 le 18/09/2026 ;
+- un seul envoi, pas de boucle, pas de retry ;
+- aucune modification du pipeline actuel, `messages_a_envoyer` inchangé, l'envoi groupe existant
+  reste fonctionnel ;
+- secrets provenant uniquement de `.env` (déjà ignoré par Git), rien écrit en dur.
+
+**POC WhatsApp Channel : VALIDÉ**
+
+Go / whatsmeow → vrai WhatsApp Channel → message visible
+
+**Abonnement habitant** : le lien public du Channel
+(`https://whatsapp.com/channel/<invite>`, disponible via `ThreadMeta.InviteCode`) est une URL
+standard, transformable en QR code sans dépendance à whatsmeow — l'abonnement se fait nativement
+dans l'app WhatsApp de l'habitant, sans collecte de numéro côté Mairie Diffusion.
+
+**Risque principal identifié, non résolu** : contrairement à la messagerie classique (protocole
+binaire stable), les fonctions Channel de whatsmeow passent par la couche interne `w:mex`
+(GraphQL) de Meta, avec des identifiants de requête codés en dur dans `newsletter.go`
+(`queryFetchNewsletter`, `mutationCreateNewsletter`, etc.). Ce sont des détails internes
+susceptibles d'être changés par Meta sans préavis, ce qui casserait les fonctions Channel jusqu'à
+correctif whatsmeow.
+
+whatsmeow reste une solution non officielle vis-à-vis de Meta. Cette validation du POC ne
+constitue pas encore une validation de robustesse pour une exploitation commerciale : acceptable
+pour la démonstration en cours, pas encore pour un engagement contractuel ferme envers des
+mairies sans plan de mitigation (monitoring de la fonctionnalité, transparence sur la nature non
+officielle du canal technique).

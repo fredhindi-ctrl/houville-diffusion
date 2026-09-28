@@ -14,16 +14,6 @@
     --oeil:#c8871a; --trait:#dcdcd8; --carte:#ffffff;
     --bg:var(--papier); --texte:var(--encre); --texte-doux:var(--encre-doux);
   }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --bg:#141a20; --texte:#eee8dc; --texte-doux:#a9b4be;
-      --carte:#1c242c; --trait:#2f3a44;
-    }
-  }
-  :root[data-theme="dark"]{
-    --bg:#141a20; --texte:#eee8dc; --texte-doux:#a9b4be;
-    --carte:#1c242c; --trait:#2f3a44;
-  }
   *{box-sizing:border-box}
   html{-webkit-text-size-adjust:100%}
   body{
@@ -254,19 +244,10 @@
     color:#f2f2f0; text-decoration:none; font-weight:600; font-size:16px;
     padding:13px 26px; border-radius:9px; transition:opacity .15s ease;
   }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]) .lien{background:var(--oeil);color:#24190a}
-  }
-  :root[data-theme="dark"] .lien{background:var(--oeil);color:#24190a}
   .lien:hover{opacity:.87}
   .lien:focus-visible{outline:3px solid var(--oeil);outline-offset:3px}
 
-  :root:not([data-theme="dark"]) .section-sans-charge,
-  :root:not([data-theme="dark"]) footer{--texte-doux:#4B5563}
-  @media (prefers-color-scheme:dark){
-    :root:not([data-theme="light"]):not([data-theme="dark"]) .section-sans-charge,
-    :root:not([data-theme="light"]):not([data-theme="dark"]) footer{--texte-doux:#a9b4be}
-  }
+  .section-sans-charge, footer{--texte-doux:#4B5563}
   footer{width:100%; padding:40px 24px 24px; color:var(--texte-doux); font-size:15px}
   .footer-inner{max-width:1080px; margin:0 auto; display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:40px}
   .footer-logo{width:120px; height:auto; display:block; margin:0 0 12px}
