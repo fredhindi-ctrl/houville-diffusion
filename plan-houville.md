@@ -329,11 +329,17 @@ Landing page complète dédiée à la prospection de nouvelles communes, sépar�
 Œdicnème (aucun impact sur le produit déployé).
 
 **Emplacement et déploiement** : `landing-page/index.html`, dans le dépôt, poussé sur `main`.
-Déployée en production sur Vercel : `https://landing-page-chi-rosy-62.vercel.app` (projet
-`landing-page`, équipe `fred-ac2b`). **Limite connue** : l'auto-déploiement Vercel depuis les
-push GitHub ne fonctionne pas correctement pour ce sous-dossier (mauvais root directory
-détecté) — chaque mise à jour du site en ligne nécessite un déploiement manuel
-(`npx vercel --prod` lancé depuis `landing-page/`).
+Hébergement de production sur **OVH mutualisé** (offre `mairilc`, cluster `cluster129`),
+domaine réel **`https://mairiediffusion.fr`**. Déploiement par upload SFTP direct
+(`ftp.cluster129.hosting.ovh.net:22`, login `mairilc`) vers `www/` — pas d'intégration Git
+côté OVH, donc chaque mise à jour du site en ligne nécessite un nouveau transfert manuel des
+fichiers modifiés (`index.html`, `mentions-legales.html`, `confidentialite.html` et les images
+utilisées dans `images/`).
+
+Un déploiement Vercel a existé en amont (`https://landing-page-chi-rosy-62.vercel.app`, projet
+`landing-page` de l'équipe `fred-ac2b`) le temps de finaliser la page ; il reste actif mais
+n'est plus la référence — `mairiediffusion.fr` (OVH) est désormais le déploiement de
+production réel, cohérent avec ce qu'annoncent déjà les mentions légales de la page.
 
 **Architecture de marque** : "Mairie Diffusion" est la marque commerciale principale
 (logo, titre, ton). "Œdicnème" n'apparaît plus dans la présentation commerciale visible —
