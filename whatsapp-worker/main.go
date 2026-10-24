@@ -57,13 +57,14 @@ func main() {
 				fmt.Println("Résolution du lien du Channel échouée (réessai au prochain poll) :", err)
 			} else {
 				channelJID = info.ID.String()
-				role := ""
+				fmt.Printf("Channel résolu : %q — JID %s\n", info.ThreadMeta.Name.Text, channelJID)
+				// Via un lien d'invitation, WhatsApp ne renvoie souvent pas le rôle : on n'alerte
+				// que s'il est connu et insuffisant.
 				if info.ViewerMeta != nil {
-					role = string(info.ViewerMeta.Role)
-				}
-				fmt.Printf("Channel résolu : %q — JID %s — rôle du compte : %s\n", info.ThreadMeta.Name.Text, channelJID, role)
-				if role != string(types.NewsletterRoleOwner) && role != string(types.NewsletterRoleAdmin) {
-					fmt.Println("ATTENTION : le compte n'est ni propriétaire ni admin du Channel, les envois y échoueront.")
+					role := info.ViewerMeta.Role
+					if role == types.NewsletterRoleSubscriber || role == types.NewsletterRoleGuest {
+						fmt.Println("ATTENTION : le compte n'est ni propriétaire ni admin du Channel, les envois y échoueront.")
+					}
 				}
 			}
 		}
