@@ -3,6 +3,8 @@
 // voir plan-houville.md). N'envoie une alerte que si le worker est réellement en panne, jamais
 // de mail "tout va bien" au quotidien.
 
+import { sendAlertEmail } from "./alerte.js";
+
 interface HealthResponse {
   status: string;
   whatsapp: string;
@@ -30,31 +32,12 @@ export async function checkWhatsappWorkerHealth(): Promise<void> {
   }
 
   if (enPanne) {
-    await sendAlertEmail(detail);
-  }
-}
-
-async function sendAlertEmail(detail: string): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.EMAIL_TO;
-  if (!apiKey || !to) return;
-
-  try {
-    await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: "Œdicnème <onboarding@resend.dev>",
-        to: [to],
-        subject: "⚠️ whatsapp-worker semble en panne",
-        text:
-          "Vérification quotidienne (scraper Vercel) : whatsapp-worker ne répond pas correctement.\n\n" +
-          `Détail : ${detail}\n\n` +
-          "UptimeRobot devrait aussi avoir alerté si c'est le cas depuis un moment — ceci est une " +
-          "double vérification indépendante.",
-      }),
-    });
-  } catch {
-    // Rien de plus à faire si même l'alerte échoue — ne doit jamais faire planter le cron.
+    await sendAlertEmail(
+      "⚠️ whatsapp-worker semble en panne",
+      "Vérification quotidienne (scraper Vercel) : whatsapp-worker ne répond pas correctement.\n\n" +
+        `Détail : ${detail}\n\n` +
+        "UptimeRobot devrait aussi avoir alerté si c'est le cas depuis un moment — ceci est une " +
+        "double vérification indépendante.",
+    );
   }
 }

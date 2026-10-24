@@ -4,6 +4,7 @@ import { scrapeComptesRendus } from "./comptes-rendus.js";
 import { extractPdfText } from "./pdf.js";
 import { formatMessageActualite, formatMessageCompteRendu } from "./whatsapp-templates.js";
 import { checkWhatsappWorkerHealth } from "./whatsapp-health.js";
+import { sendAlertEmail } from "./alerte.js";
 
 export interface ResultatScrape {
   comptesRendus: { scannes: number; nouveaux: number };
@@ -65,12 +66,35 @@ export async function runScrapeJob(): Promise<ResultatScrape> {
     const items = await scrapeActualites(1);
     resultat.actualites.scannees = items.length;
 
-    const { data: existantes, error: errExistantes } = await supabase.from("actualites").select("site_id");
+    const { data: existantes, error: errExistantes } = await supabase.from("actualites").select("site_id, titre");
     if (errExistantes) throw new Error(`lecture actualites : ${errExistantes.message}`);
-    const siteIdsExistants = new Set((existantes ?? []).map((r) => r.site_id));
+    const titresExistants = new Map((existantes ?? []).map((r) => [r.site_id, r.titre as string]));
 
     for (const actu of items) {
-      if (siteIdsExistants.has(actu.site_id)) continue;
+      const titreConnu = titresExistants.get(actu.site_id);
+      if (titreConnu === actu.titre) continue;
+
+      // La mairie réutilise parfois une ancienne actualité (même site_id) en changeant son
+      // titre et son contenu : on la traite alors comme une nouvelle publication.
+      if (titreConnu !== undefined) {
+        try {
+          const { error: errUpdate } = await supabase
+            .from("actualites")
+            .update({ titre: actu.titre, url: actu.url, extrait: actu.extrait })
+            .eq("site_id", actu.site_id);
+          if (errUpdate) throw new Error(errUpdate.message);
+
+          const { error: errMessage } = await supabase
+            .from("messages_a_envoyer")
+            .insert({ contenu: formatMessageActualite(actu) });
+          if (errMessage) throw new Error(errMessage.message);
+
+          resultat.actualites.nouvelles++;
+        } catch (e) {
+          resultat.erreurs.push(`actualité modifiée ${actu.site_id} : ${(e as Error).message}`);
+        }
+        continue;
+      }
 
       try {
         const { error: errInsert } = await supabase
@@ -100,5 +124,39 @@ export async function runScrapeJob(): Promise<ResultatScrape> {
     resultat.erreurs.push(`vérification whatsapp-worker : ${(e as Error).message}`);
   }
 
+  await enregistrerEtat(resultat);
+
   return resultat;
+}
+
+// Une page de listing vide = la structure du site a probablement changé (le scraper ne
+// reconnaît plus rien) : c'est traité comme une erreur.
+function anomalies(r: ResultatScrape): string[] {
+  const liste = [...r.erreurs];
+  if (r.comptesRendus.scannes === 0) liste.push("aucun compte rendu trouvé sur le site (structure modifiée ?)");
+  if (r.actualites.scannees === 0) liste.push("aucune actualité trouvée sur le site (structure modifiée ?)");
+  return liste;
+}
+
+// Enregistre le passage dans etat_jobs (lu par /api/health, surveillé par UptimeRobot) et
+// envoie un email immédiat en cas d'anomalie.
+async function enregistrerEtat(r: ResultatScrape): Promise<void> {
+  const problemes = anomalies(r);
+  const maintenant = new Date().toISOString();
+
+  const ligne: Record<string, unknown> = { nom: "scrape", dernier_passage: maintenant, erreurs: problemes };
+  if (problemes.length === 0) ligne.dernier_succes = maintenant;
+
+  const { error } = await supabase.from("etat_jobs").upsert(ligne);
+  if (error) problemes.push(`écriture etat_jobs : ${error.message}`);
+
+  if (problemes.length > 0) {
+    await sendAlertEmail(
+      "⚠️ Houville : le scraper quotidien a rencontré un problème",
+      "Le scrape du site de Houville-la-Branche ne s'est pas déroulé normalement.\n" +
+        "Des actualités ou comptes rendus risquent de ne pas être diffusés sur WhatsApp.\n\n" +
+        problemes.map((p) => `• ${p}`).join("\n") +
+        `\n\nRésultat : ${JSON.stringify({ comptesRendus: r.comptesRendus, actualites: r.actualites })}`,
+    );
+  }
 }

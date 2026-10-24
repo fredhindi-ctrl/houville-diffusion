@@ -118,3 +118,13 @@ $$;
 -- L'ancienne table `baileys_auth_state` n'est plus utilisée et n'est volontairement plus créée
 -- par ce schéma. Si elle existe dans une base historique, elle peut rester en place jusqu'à un
 -- nettoyage manuel ultérieur.
+
+-- Dernier passage du scraper quotidien (une seule ligne, nom = 'scrape').
+-- Lu par vercel-app /api/health, surveillé par UptimeRobot : alerte si le cron ne tourne plus.
+create table if not exists etat_jobs (
+  nom text primary key,
+  dernier_passage timestamptz not null,
+  dernier_succes timestamptz,
+  erreurs jsonb not null default '[]'::jsonb
+);
+alter table etat_jobs enable row level security;
