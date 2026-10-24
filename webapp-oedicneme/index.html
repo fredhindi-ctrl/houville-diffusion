@@ -455,6 +455,51 @@ mark{background:#ffe28a;padding:0 3px;border-radius:4px;color:inherit}
   }
 }
 
+/* ---------- Liste des comptes rendus ---------- */
+header{min-width:0}
+.crButton{
+  flex:none;display:inline-flex;align-items:center;gap:6px;
+  padding:8px 13px;border-radius:999px;border:1px solid #deb85b;
+  background:var(--yellow);color:#3a2800;font-weight:800;font-size:.8rem;
+  cursor:pointer;white-space:nowrap;box-shadow:0 4px 10px rgba(245,183,25,.22)
+}
+.crButton:hover{background:var(--yellow-2)}
+.crButton:focus-visible,.crItem:focus-visible,.crClose:focus-visible{outline:3px solid rgba(143,82,13,.45);outline-offset:2px}
+.crOverlay{position:fixed;inset:0;z-index:25;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(48,39,29,.38)}
+.crOverlay[hidden]{display:none}
+.crPanel{
+  width:min(720px,100%);height:min(86dvh,820px);display:flex;flex-direction:column;
+  background:var(--cream-2);border:1px solid var(--line);border-radius:20px;
+  box-shadow:0 24px 60px rgba(48,39,29,.28);overflow:hidden
+}
+.crHead{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:rgba(255,253,248,.96)}
+.crHead h2{margin:0;font-size:1.08rem;font-weight:800;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crClose{flex:none;border:1px solid var(--line);background:#fffaf0;border-radius:999px;min-width:40px;height:40px;padding:0 12px;font-weight:800;cursor:pointer}
+.crClose:hover{background:#fff3cf}
+.crBody{flex:1;min-height:0;overflow:auto;padding:14px 16px 20px;overscroll-behavior:contain}
+.crYear{margin:16px 0 7px;font-size:.74rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#95640a}
+.crYear:first-child{margin-top:2px}
+.crList{display:grid;gap:7px}
+.crItem{
+  display:flex;text-decoration:none;color:inherit;align-items:center;gap:12px;width:100%;text-align:left;cursor:pointer;
+  padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);
+  box-shadow:0 3px 9px rgba(67,47,24,.05);transition:background .15s,border-color .15s
+}
+.crItem:hover{background:#fff3cf;border-color:#deb85b}
+.crItem .crDate{font-weight:800;font-size:.95rem}
+.crItem .crArrow{margin-left:auto;color:#a78b65;font-size:1.1rem}
+.crEmpty{color:var(--muted);text-align:center;padding:30px 10px}
+@media (max-width:800px){
+  .crOverlay{padding:0}
+  .crPanel{width:100%;height:var(--mobile-vh,100dvh);border:0;border-radius:0}
+  .crHead{padding:calc(10px + env(safe-area-inset-top)) 12px 10px}
+  .crBody{padding:12px 12px calc(20px + env(safe-area-inset-bottom))}
+  .crButton{padding:7px 10px;font-size:.74rem}
+}
+@media (max-width:390px){
+  .crButton{padding:7px 9px;font-size:.7rem;gap:4px}
+}
+
 </style>
 </head>
 <body>
@@ -474,6 +519,7 @@ mark{background:#ffe28a;padding:0 3px;border-radius:4px;color:inherit}
   </div>
   <div class="badges">
     <span class="badge">🔎 Recherche documentaire — sans IA générative</span>
+    <button id="crOpen" class="crButton" type="button" aria-label="Voir tous les comptes rendus" aria-haspopup="dialog">📋<span class="crLabel">Comptes rendus</span></button>
   </div>
 </header>
 
@@ -496,6 +542,15 @@ mark{background:#ffe28a;padding:0 3px;border-radius:4px;color:inherit}
     </div>
   </section>
 </main>
+</div>
+<div id="crOverlay" class="crOverlay" hidden>
+  <div class="crPanel" role="dialog" aria-modal="true" aria-labelledby="crHeading">
+    <div class="crHead">
+      <h2 id="crHeading">Comptes rendus du conseil</h2>
+      <button id="crClose" class="crClose" type="button" aria-label="Fermer">✕</button>
+    </div>
+    <div id="crBody" class="crBody"></div>
+  </div>
 </div>
 <div id="toast" class="toast"></div>
 
@@ -914,6 +969,59 @@ async function runSearch(text) {
     setTimeout(() => q.focus(), 100);
   }
 }
+
+/* ---------- Liste des comptes rendus (clic = PDF) ---------- */
+(function(){
+  const overlay = document.getElementById('crOverlay');
+  const body = document.getElementById('crBody');
+  const openBtn = document.getElementById('crOpen');
+  let loaded = false;
+
+  async function load() {
+    body.innerHTML = '<div class="crEmpty"><span class="typing"><i></i><i></i><i></i></span></div>';
+    try {
+      const res = await fetch('/api/comptes-rendus');
+      if (!res.ok) throw new Error('list failed');
+      const list = (await res.json()).results || [];
+      if (!list.length) {
+        body.innerHTML = '<div class="crEmpty">Aucun compte rendu pour le moment.</div>';
+        return;
+      }
+      let html = '';
+      let year = null;
+      list.forEach(cr => {
+        const y = String(cr.date_conseil || '').slice(0, 4);
+        if (y !== year) {
+          if (year !== null) html += '</div>';
+          html += `<div class="crYear">${esc(y)}</div><div class="crList">`;
+          year = y;
+        }
+        html += `<a class="crItem" href="${esc(cr.url_pdf)}" target="_blank" rel="noopener noreferrer">
+          <span class="crDate">${esc(formatDate(cr.date_conseil))}</span>
+          <span class="crArrow" aria-hidden="true">📄</span></a>`;
+      });
+      body.innerHTML = html + '</div>';
+      loaded = true;
+    } catch (e) {
+      body.innerHTML = '<div class="crEmpty">Impossible de charger les comptes rendus, réessayez dans un instant.</div>';
+    }
+  }
+
+  function open() {
+    overlay.hidden = false;
+    if (!loaded) load();
+    setTimeout(() => document.getElementById('crClose').focus(), 30);
+  }
+  function close() {
+    overlay.hidden = true;
+    openBtn.focus();
+  }
+
+  openBtn.addEventListener('click', open);
+  document.getElementById('crClose').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !overlay.hidden) close(); });
+})();
 
 function showToast(msg) {
   toast.textContent = msg;
