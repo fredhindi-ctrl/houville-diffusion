@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"go.mau.fi/whatsmeow/types"
 )
 
 // Process permanent (AlwaysData) : connexion whatsmeow, boucle de polling de
@@ -29,6 +31,10 @@ func main() {
 	defer client.Disconnect()
 
 	groupJID := os.Getenv("WHATSAPP_GROUP_JID")
+	channelJID := os.Getenv("WHATSAPP_CHANNEL_JID") // facultatif : copie vers un Channel WhatsApp
+	// Alternative : lien d'invitation du Channel, résolu par le worker lui-même une fois connecté
+	// (évite de lancer un 2e client sur la même session, qui déconnecterait le worker).
+	channelInvite := os.Getenv("WHATSAPP_CHANNEL_INVITE")
 
 	startHealthServer(sb)
 
@@ -42,7 +48,26 @@ func main() {
 			fmt.Println("Polling ignoré : WHATSAPP_GROUP_JID pas encore configuré.")
 			return
 		}
-		if err := pollAndSend(client, sb, groupJID); err != nil {
+		if channelJID == "" && channelInvite != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			info, err := client.GetNewsletterInfoWithInvite(ctx, channelInvite)
+			cancel()
+			if err != nil {
+				// Réessayé au prochain passage ; le groupe est servi quand même.
+				fmt.Println("Résolution du lien du Channel échouée (réessai au prochain poll) :", err)
+			} else {
+				channelJID = info.ID.String()
+				role := ""
+				if info.ViewerMeta != nil {
+					role = string(info.ViewerMeta.Role)
+				}
+				fmt.Printf("Channel résolu : %q — JID %s — rôle du compte : %s\n", info.ThreadMeta.Name.Text, channelJID, role)
+				if role != string(types.NewsletterRoleOwner) && role != string(types.NewsletterRoleAdmin) {
+					fmt.Println("ATTENTION : le compte n'est ni propriétaire ni admin du Channel, les envois y échoueront.")
+				}
+			}
+		}
+		if err := pollAndSend(client, sb, groupJID, channelJID); err != nil {
 			fmt.Println("Erreur pendant le polling :", err)
 		}
 	}
